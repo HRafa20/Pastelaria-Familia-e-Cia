@@ -1,0 +1,178 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Meu Carrinho | Família & Cia</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <!-- CSS principal do projeto -->
+    <link rel="stylesheet" href="public/style/index.css">
+
+    <!-- CSS exclusivo do carrinho -->
+    <link rel="stylesheet" href="public/style/carrinho.css">
+
+</head>
+
+<body>
+
+    <!-- Barra de Navegação -->
+   <nav>
+    <a href="index.html">Pastelaria Família e Cia</a>
+
+    <div class="links-nav">
+        <a href="index.html">Início</a>
+        <a href="login.html">Login</a>
+        <a href="cardapio.html">Cardápio</a>
+        <a href="produtos.html">Produtos</a>
+        <a href="pedidos.html">Pedidos</a>
+        <a href="usuarios.html">Usuários</a>
+        <a href="perfil.html">Perfil</a>
+        
+        <!-- Ícone do Carrinho padronizado (sem li para evitar o ponto) -->
+        <a href="carrinho.html" class="link-carrinho" title="Meu carrinho">
+            <i class="bi bi-cart3"></i>
+            <span class="cart-count-badge">0</span>
+        </a>
+    </div>
+</nav>
+
+    <!-- Conteúdo Principal -->
+    <main class="container py-5 carrinho-container">
+
+        <!-- Título -->
+        <div class="page-heading mb-5">
+
+            <span class="eyebrow">Seus favoritos estão aqui</span>
+
+            <h1>Meu carrinho</h1>
+
+            <p>Confira seus produtos antes de finalizar o pedido.</p>
+
+        </div>
+
+
+        <div class="row g-4">
+
+            <!-- Lista de Produtos -->
+            <div class="col-lg-8">
+
+                <div class="carrinho-conteudo">
+
+                    <div id="carrinho-lista">
+
+                        <!-- Produtos adicionados ao carrinho pelo JavaScript -->
+
+                    </div>
+
+                </div>
+
+                <!-- Continuar comprando -->
+                <div class="mt-4">
+
+                    <a href="cardapio.html" class="btn-voltar">
+
+                        <i class="bi bi-arrow-left"></i>
+
+                        Continuar comprando
+
+                    </a>
+
+                </div>
+
+            </div>
+
+
+            <!-- Resumo do Pedido -->
+            <div class="col-lg-4">
+
+                <div class="resumo-carrinho">
+
+                    <h4>Resumo do pedido</h4>
+
+                    <hr>
+
+                    <div class="resumo-linha">
+
+                        <span>Quantidade de itens:</span>
+
+                        <strong id="carrinho-quantidade">0</strong>
+
+                    </div>
+
+
+                    <div class="resumo-linha">
+
+                        <span>Subtotal:</span>
+
+                        <strong id="carrinho-subtotal">R$ 0,00</strong>
+
+                    </div>
+
+
+                    <hr>
+
+
+                    <div class="resumo-linha resumo-total">
+
+                        <span>Total:</span>
+
+                        <strong id="carrinho-total">R$ 0,00</strong>
+
+                    </div>
+
+
+                    <!-- Finalizar Pedido -->
+                    <button type="button" class="btn-finalizar" id="btn-finalizar">
+
+                        <i class="bi bi-bag-check"></i>
+
+                        Finalizar pedido
+
+                    </button>
+
+
+                    <p class="text-muted text-center mt-3 small">
+
+                        Obrigado por escolher a Família & Cia!
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+
+    <!-- Rodapé -->
+    <div id="site-footer"></div>
+
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script src="public/scripts/sessao.js"></script>
+
+    <script src="public/scripts/api.js"></script>
+
+    <script src="public/scripts/ui.js"></script>
+
+    <script src="public/scripts/carrinho-service.js"></script>
+
+    <script src="public/scripts/carrinho.js"></script>
+
+</body>
+
+</html>

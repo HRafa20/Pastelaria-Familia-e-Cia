@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pastelaria Família & Cia</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Estilos Customizados -->
+  <link rel="stylesheet" href="public/style/index.css">
+
+  
+
+  
+<link rel="stylesheet"
+href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+ 
+</head>
+<body>
+
+   <nav>
+    <a href="index.html">Pastelaria Família e Cia</a>
+
+    <div class="links-nav">
+        <a href="index.html">Início</a>
+        <a href="login.html">Login</a>
+        <a href="cardapio.html">Cardápio</a>
+        <a href="produtos.html">Produtos</a>
+        <a href="pedidos.html">Pedidos</a>
+        <a href="usuarios.html">Usuários</a>
+        <a href="perfil.html">Perfil</a>
+        
+        <!-- Ícone do Carrinho padronizado (sem li para evitar o ponto) -->
+        <a href="carrinho.html" class="link-carrinho" title="Meu carrinho">
+            <i class="bi bi-cart3"></i>
+            <span class="cart-count-badge">0</span>
+        </a>
+    </div>
+</nav>
+
+  <!-- Cabeçalho Principal (Hero) -->
+  <header class="hero">
+    <div class="container py-5">
+      <span class="eyebrow">Feito na hora, do jeitinho que você gosta</span>
+      <h1>Pastelaria <span>Família & Cia</span></h1>
+      <p class="lead">Pastéis crocantes, recheios caprichados e aquele sabor que reúne todo mundo.</p>
+    </div>
+  </header>
+
+  <!-- Conteúdo Principal -->
+  <main class="container py-5">
+    <section class="text-center mb-5">
+      <span class="eyebrow">Nossa casa</span>
+      <h2>Um sabor para compartilhar</h2>
+      <p class="text-secondary mx-auto intro">
+        Na Família & Cia, cada pastel é preparado com carinho, massa douradinha e ingredientes selecionados. Escolha seus favoritos e faça seu pedido!
+      </p>
+    </section>
+
+    <!-- Carrossel de fotos -->
+<div id="carrosselPasteis" class="carousel slide carrossel-pasteis mb-2" data-bs-ride="carousel">
+  <div class="carousel-indicators">
+    <button type="button" data-bs-target="#carrosselPasteis" data-bs-slide-to="0" class="active" aria-label="Foto 1"></button>
+    <button type="button" data-bs-target="#carrosselPasteis" data-bs-slide-to="1" aria-label="Foto 2"></button>
+    <button type="button" data-bs-target="#carrosselPasteis" data-bs-slide-to="2" aria-label="Foto 3"></button>
+  </div>
+
+  <div class="carousel-inner">
+    <div class="carousel-item active">
+      <img src="public/images/pastel01.jpg" class="d-block w-100">
+      <div class="carousel-caption">
+  
+      </div>
+    </div>
+    <div class="carousel-item">
+      <img src="public/images/pastel02.webp" class="d-block w-100">
+      <div class="carousel-caption">
+        
+      </div>
+    </div>
+    <div class="carousel-item">
+      <img src="public/images/pastel03.jpg" class="d-block w-100">
+      <div class="carousel-caption">
+        
+      </div>
+    </div>
+  </div>
+
+  <button class="carousel-control-prev" type="button" data-bs-target="#carrosselPasteis" data-bs-slide="prev">
+    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+    <span class="visually-hidden">Anterior</span>
+  </button>
+  <button class="carousel-control-next" type="button" data-bs-target="#carrosselPasteis" data-bs-slide="next">
+    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+    <span class="visually-hidden">Próximo</span>
+  </button>
+</div>
+
+    <!-- Destaques -->
+    <div class="row g-4">
+      <div class="col-md-4">
+        <div class="feature-card">
+          <div class="feature-icon">🥟</div>
+          <h3>Feito na hora</h3>
+          <p>Pastéis preparados na hora para chegar quentinhos e crocantes.</p>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="feature-card">
+          <div class="feature-icon">❤️</div>
+          <h3>Receita de família</h3>
+          <p>Recheios generosos e aquele cuidado em cada detalhe.</p>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="feature-card">
+          <div class="feature-icon">🛵</div>
+          <h3>Peça do seu jeito</h3>
+          <p>Escolha retirada no balcão ou entrega no seu endereço.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chamada para Ação (CTA) -->
+    <section class="cta mt-5 text-center">
+      <h2>Bateu aquela vontade?</h2>
+      <p>Confira nossas opções e monte seu pedido.</p>
+      <a href="cardapio.html" class="btn btn-pastel">Acessar o cardápio</a>
+    </section>
+  </main>
+  
+
+  <!-- Rodapé gerado via JS -->
+  <div id="site-footer"></div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="public/scripts/sessao.js"></script>
+</body>
+</html>

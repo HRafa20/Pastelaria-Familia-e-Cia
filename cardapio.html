@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cardápio | Família & Cia</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Estilos Customizados -->
+  <link rel="stylesheet" href="public/style/index.css">
+  <link rel="stylesheet"
+href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+  <!-- Barra de Navegação -->
+  <nav>
+    <a href="index.html">Pastelaria Família e Cia</a>
+
+    <div class="links-nav">
+        <a href="index.html">Início</a>
+        <a href="login.html">Login</a>
+        <a href="cardapio.html">Cardápio</a>
+        <a href="produtos.html">Produtos</a>
+        <a href="pedidos.html">Pedidos</a>
+        <a href="usuarios.html">Usuários</a>
+        <a href="perfil.html">Perfil</a>
+        
+        <!-- Ícone do Carrinho padronizado (sem li para evitar o ponto) -->
+        <a href="carrinho.html" class="link-carrinho" title="Meu carrinho">
+            <i class="bi bi-cart3"></i>
+            <span class="cart-count-badge">0</span>
+        </a>
+    </div>
+</nav>
+        
+
+  <!-- Conteúdo Principal -->
+  <main class="container py-5">
+    <div class="page-heading">
+      <span class="eyebrow">Escolha o seu favorito</span>
+      <h1>Nosso cardápio</h1>
+      <p>Pastéis e acompanhamentos preparados com carinho.</p>
+    </div>
+
+    <!-- Container de Alertas -->
+    <div id="alert-container"></div>
+
+    <!-- Filtros de Categorias -->
+    <div class="d-flex flex-wrap gap-2 mb-4" id="categorias-filtro"></div>
+
+    <!-- Lista de Produtos -->
+    <div class="row g-4" id="produtos-list"></div>
+  </main>
+
+  <!-- Modal para Fazer Pedido -->
+  <div class="modal fade" id="pedidoModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Adicionar ao pedido</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <form id="pedidoForm">
+            <input type="hidden" id="pedido-id-produto">
+            <p class="fw-bold mb-1" id="pedido-produto-nome"></p>
+            <p class="text-muted" id="pedido-produto-preco"></p>
+
+            <div class="mb-3">
+              <label class="form-label" for="pedido-quantidade">Quantidade</label>
+              <input class="form-control" type="number" min="1" value="1" id="pedido-quantidade" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="pedido-tipo-entrega">Como deseja receber?</label>
+              <select class="form-select" id="pedido-tipo-entrega">
+                <option value="RETIRADA">Retirada no local</option>
+                <option value="DELIVERY">Entrega</option>
+              </select>
+            </div>
+
+            <div id="pedido-endereco-container" class="mb-3" hidden>
+              <label class="form-label" for="pedido-endereco">Endereço</label>
+              <input class="form-control" id="pedido-endereco">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="pedido-telefone">Telefone</label>
+              <input class="form-control" id="pedido-telefone" required>
+            </div>
+
+            <div>
+              <label class="form-label" for="pedido-forma-pagamento">Pagamento</label>
+              <select class="form-select" id="pedido-forma-pagamento">
+                <option>PIX</option>
+                <option>Cartão</option>
+                <option>Dinheiro</option>
+              </select>
+            </div>
+          </form>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Voltar</button>
+          <button type="button" class="btn btn-outline-pastel" id="btnAdicionarAoCarrinhoModal">Adicionar ao carrinho</button>
+          <button type="button" class="btn btn-pastel" id="btnConfirmarPedido">Pedir agora</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rodapé -->
+  <div id="site-footer"></div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="public/scripts/sessao.js"></script>
+  <script src="public/scripts/ui.js"></script>
+  <script src="public/scripts/api.js"></script>
+  <script src="public/scripts/cardapio.js"></script>
+  <script src="public/scripts/carrinho-service.js"></script>
+  
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minha conta | Família & Cia</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Estilos Customizados -->
+  <link rel="stylesheet" href="public/style/index.css">
+</head>
+<body>
+  <!-- Barra de Navegação -->
+  <nav>
+    <a href="index.html">Pastelaria Família e Cia</a>
+
+    <div class="links-nav">
+        <a href="index.html">Início</a>
+        <a href="login.html">Login</a>
+        <a href="cardapio.html">Cardápio</a>
+        <a href="produtos.html">Produtos</a>
+        <a href="pedidos.html">Pedidos</a>
+        <a href="usuarios.html">Usuários</a>
+        <a href="perfil.html">Perfil</a>
+        
+        <!-- Ícone do Carrinho padronizado (sem li para evitar o ponto) -->
+        <a href="carrinho.html" class="link-carrinho" title="Meu carrinho">
+            <i class="bi bi-cart3"></i>
+            <span class="cart-count-badge">0</span>
+        </a>
+    </div>
+</nav>
+  <!-- Conteúdo Principal -->
+  <main class="container py-5">
+    <div class="form-card">
+      <h1>Minha conta</h1>
+
+      <!-- Container de Alertas -->
+      <div id="alert-container"></div>
+
+      <!-- Formulário de Perfil -->
+      <form id="perfilForm">
+        <div class="mb-3">
+          <label class="form-label" for="perfil-nome">Nome</label>
+          <input class="form-control" id="perfil-nome" required>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="perfil-email">E-mail</label>
+          <input class="form-control" id="perfil-email" type="email" required>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="perfil-telefone">Telefone</label>
+          <input class="form-control" id="perfil-telefone">
+        </div>
+
+        <button type="submit" class="btn btn-pastel w-100">Salvar alterações</button>
+      </form>
+    </div>
+  </main>
+
+  <!-- Rodapé -->
+  <div id="site-footer"></div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="public/scripts/sessao.js"></script>
+  <script src="public/scripts/ui.js"></script>
+  <script src="public/scripts/perfil.js"></script>
+</body>
+</html>
