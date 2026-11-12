@@ -5,18 +5,27 @@
 
 let categoriasCache = [];
 let todosProdutos = []; // cache local para o filtro por categoria
+let _idCategoriaPendente = null; // id da categoria aguardando confirmação de exclusão
+let _categoriaFiltroAtiva = null; // null = "Todos"
 
 document.addEventListener('DOMContentLoaded', async () => {
     exigirAdministrador();
 
-    // Espera as categorias chegarem antes de carregar os produtos: o card
-    // de produto mostra o nome da categoria, e precisa do cache pronto.
     await carregarCategorias();
     carregarProdutos();
 
     document.getElementById('categoriaForm').addEventListener('submit', criarCategoria);
     document.getElementById('btnNovoProduto').addEventListener('click', abrirModalNovoProduto);
     document.getElementById('btnSalvarProduto').addEventListener('click', salvarProduto);
+
+    // Botão de confirmação do modal de exclusão de categoria
+    document.getElementById('btnConfirmarExcluirCategoria').addEventListener('click', async () => {
+        if (!_idCategoriaPendente) return;
+        const modal = bootstrap.Modal.getInstance(document.getElementById('confirmarExclusaoCategoriaModal'));
+        modal.hide();
+        await removerCategoria(_idCategoriaPendente);
+        _idCategoriaPendente = null;
+    });
 });
 
 // ─── Categorias ────────────────────────────────────────────────────────────────
@@ -26,7 +35,6 @@ async function carregarCategorias() {
         const pagina = await window.api.getCategorias();
         categoriasCache = pagina.content || pagina;
         renderizarCategorias();
-        renderizarFiltrosCategorias();
         preencherSelectCategorias();
     } catch (erro) {
         mostrarAlerta('Não foi possível carregar as categorias.', 'danger');
@@ -37,43 +45,53 @@ function renderizarCategorias() {
     const container = document.getElementById('categorias-list');
     container.innerHTML = '';
 
-    if (categoriasCache.length === 0) {
-        container.innerHTML = '<p class="text-muted">Nenhuma categoria cadastrada ainda.</p>';
-        return;
-    }
+    // Pill "Todos" — sem id de categoria, mostra tudo
+    const pillTodos = document.createElement('span');
+    pillTodos.className = 'badge-tipo rounded-pill px-3 py-2 d-inline-flex align-items-center gap-2 categoria-filtro-pill active';
+    pillTodos.style.cursor = 'pointer';
+    pillTodos.dataset.id = '';
+    pillTodos.textContent = 'Todos';
+    pillTodos.onclick = () => ativarFiltroPill(null, pillTodos);
+    container.appendChild(pillTodos);
+
+    if (categoriasCache.length === 0) return;
 
     categoriasCache.forEach((categoria) => {
         const pill = document.createElement('span');
-        pill.className = 'badge-tipo rounded-pill px-3 py-2 d-inline-flex align-items-center gap-2';
-        pill.innerHTML = `${categoria.nome} <button type="button" class="btn-close btn-close-white" style="font-size: 0.6rem" aria-label="Remover"></button>`;
-        pill.querySelector('button').onclick = () => removerCategoria(categoria.id);
+        pill.className = 'badge-tipo rounded-pill px-3 py-2 d-inline-flex align-items-center gap-2 categoria-filtro-pill';
+        pill.style.cursor = 'pointer';
+        pill.dataset.id = categoria.id;
+        pill.innerHTML = `
+            <span class="pill-nome">${categoria.nome}</span>
+            <button type="button" class="btn-excluir-categoria" title="Excluir categoria" aria-label="Excluir ${categoria.nome}"
+                style="background:none;border:none;padding:0;cursor:pointer;line-height:1;color:inherit;opacity:0.75;font-size:0.85rem;">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        `;
+        // Clique no nome filtra; clique no X exclui
+        pill.querySelector('.pill-nome').onclick = () => ativarFiltroPill(categoria.id, pill);
+        pill.querySelector('.btn-excluir-categoria').onclick = (e) => {
+            e.stopPropagation();
+            confirmarExclusaoCategoria(categoria.id, categoria.nome);
+        };
         container.appendChild(pill);
     });
 }
 
-/** Renderiza os botões de filtro por categoria acima do grid de produtos */
-function renderizarFiltrosCategorias() {
-    const container = document.getElementById('produtos-filtro-categorias');
-    if (!container) return;
-    container.innerHTML = '';
+/** Aplica o filtro visual e no grid ao clicar em um pill */
+function ativarFiltroPill(idCategoria, pillClicado) {
+    document.querySelectorAll('.categoria-filtro-pill').forEach((p) => p.classList.remove('active'));
+    pillClicado.classList.add('active');
+    _categoriaFiltroAtiva = idCategoria;
 
-    // Botão "Todos"
-    const btnTodos = document.createElement('button');
-    btnTodos.type = 'button';
-    btnTodos.className = 'btn btn-outline-secondary categoria-filtro-prod active';
-    btnTodos.textContent = 'Todos';
-    btnTodos.onclick = () => filtrarProdutosPorCategoria(null, btnTodos);
-    container.appendChild(btnTodos);
-
-    // Um botão por categoria
-    categoriasCache.forEach((categoria) => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'btn btn-outline-secondary categoria-filtro-prod';
-        btn.textContent = categoria.nome;
-        btn.onclick = () => filtrarProdutosPorCategoria(categoria.id, btn);
-        container.appendChild(btn);
-    });
+    if (!idCategoria) {
+        renderizarProdutos(todosProdutos);
+        return;
+    }
+    const filtrados = todosProdutos.filter(
+        (produto) => String(obterIdCategoria(produto)) === String(idCategoria)
+    );
+    renderizarProdutos(filtrados);
 }
 
 function preencherSelectCategorias() {
@@ -101,7 +119,6 @@ async function criarCategoria(evento) {
 }
 
 async function removerCategoria(id) {
-    if (!confirm('Remover esta categoria? Os produtos dela também serão removidos.')) return;
     try {
         await window.api.removerCategoria(id);
         mostrarAlerta('Categoria removida.', 'success');
@@ -119,27 +136,18 @@ async function carregarProdutos() {
     try {
         const pagina = await window.api.getProdutos();
         todosProdutos = pagina.content || pagina;
-        renderizarProdutos(todosProdutos);
+        // Respeita o filtro de categoria que estava ativo
+        if (_categoriaFiltroAtiva) {
+            const filtrados = todosProdutos.filter(
+                (p) => String(obterIdCategoria(p)) === String(_categoriaFiltroAtiva)
+            );
+            renderizarProdutos(filtrados);
+        } else {
+            renderizarProdutos(todosProdutos);
+        }
     } catch (erro) {
         container.innerHTML = '<div class="col-12"><p class="text-center">Não foi possível carregar os produtos.</p></div>';
     }
-}
-
-/** Filtra o grid de produtos pela categoria clicada */
-function filtrarProdutosPorCategoria(idCategoria, botaoClicado) {
-    // Atualiza estado visual dos botões
-    document.querySelectorAll('.categoria-filtro-prod').forEach((b) => b.classList.remove('active'));
-    botaoClicado.classList.add('active');
-
-    if (!idCategoria) {
-        renderizarProdutos(todosProdutos);
-        return;
-    }
-
-    const filtrados = todosProdutos.filter(
-        (produto) => String(obterIdCategoria(produto)) === String(idCategoria)
-    );
-    renderizarProdutos(filtrados);
 }
 
 function renderizarProdutos(produtos) {
@@ -153,10 +161,20 @@ function renderizarProdutos(produtos) {
 
     produtos.forEach((produto) => {
         const categoria = categoriasCache.find((c) => String(c.id) === obterIdCategoria(produto));
+
+        // Prévia da imagem (se houver)
+        let imagemHTML = '';
+        if (produto.imagem) {
+            imagemHTML = /[\/.]/.test(produto.imagem)
+                ? `<img src="${produto.imagem}" alt="${produto.nome}" class="cardapio-img rounded mb-2">`
+                : `<span class="fs-2 d-block mb-2">${produto.imagem}</span>`;
+        }
+
         const coluna = document.createElement('div');
         coluna.className = 'col-md-4 col-sm-12 mb-4';
         coluna.innerHTML = `
             <div class="border rounded p-3 h-100 d-flex flex-column">
+                ${imagemHTML}
                 <div class="d-flex justify-content-between align-items-start">
                     <h5>${produto.nome}</h5>
                     <span class="badge-tipo rounded-pill px-2 py-1 small">${categoria ? categoria.nome : '—'}</span>

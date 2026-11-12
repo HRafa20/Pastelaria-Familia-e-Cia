@@ -303,6 +303,32 @@ footer p {
     margin-left: 5px;
 }
 
+/* Imagem dos cards do cardápio */
+.cardapio-img {
+    width: 90px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid #f0e2d5;
+    flex-shrink: 0;
+    display: block;
+}
+
+/* Estado ativo dos pills de filtro de categoria em produtos.html */
+.categoria-filtro-pill {
+    transition: opacity 0.2s, box-shadow 0.2s;
+    user-select: none;
+}
+
+.categoria-filtro-pill.active {
+    box-shadow: 0 0 0 3px rgba(232, 117, 39, 0.45);
+    opacity: 1;
+}
+
+.categoria-filtro-pill:not(.active) {
+    opacity: 0.65;
+}
+
 /* Estilos do Carrinho */
 .cart-card {
     background: #fff;
