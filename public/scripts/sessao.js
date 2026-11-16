@@ -86,7 +86,6 @@ function montarNavAuth() {
     if (!linksNav) return;
 
     const linksAdmin = ['produtos.html', 'pedidos.html', 'usuarios.html'];
-    const linksCliente = ['carrinho.html', 'acompanhamento.html'];
 
     linksNav.querySelectorAll('a').forEach((link) => {
         const href = link.getAttribute('href');
@@ -94,8 +93,12 @@ function montarNavAuth() {
         if (linksAdmin.includes(href) && !ehAdministrador()) {
             link.remove();
         }
-        // Se for link de cliente e o usuário não for cliente logado (ex: for admin ou deslogado), remove
-        if (linksCliente.includes(href) && (!estaLogado() || ehAdministrador())) {
+        // Se for link de carrinho e não for cliente logado, remove
+        if (href === 'carrinho.html' && (!estaLogado() || ehAdministrador())) {
+            link.remove();
+        }
+        // Se for link de acompanhamento e não estiver logado, remove
+        if (href === 'acompanhamento.html' && !estaLogado()) {
             link.remove();
         }
         if (href === 'login.html' || href === 'perfil.html' || link.classList.contains('auth-dinamico')) {
@@ -106,7 +109,7 @@ function montarNavAuth() {
     const sessao = obterSessao();
 
     if (sessao) {
-        // Se for CLIENTE (ou qualquer não-admin logado), garante links de Carrinho e Acompanhamento
+        // Se for CLIENTE (ou qualquer não-admin logado), garante link de Carrinho
         if (!ehAdministrador()) {
             const jaTemCarrinho = Array.from(linksNav.querySelectorAll('a')).some(a => a.getAttribute('href') === 'carrinho.html');
             if (!jaTemCarrinho) {
@@ -116,15 +119,16 @@ function montarNavAuth() {
                 linkCarrinho.innerHTML = `Carrinho <span class="badge bg-warning text-dark cart-count-badge" style="display:none; font-size:0.75rem; vertical-align:middle; border-radius:10px; margin-left:4px;">0</span>`;
                 linksNav.appendChild(linkCarrinho);
             }
+        }
 
-            const jaTemAcompanhamento = Array.from(linksNav.querySelectorAll('a')).some(a => a.getAttribute('href') === 'acompanhamento.html');
-            if (!jaTemAcompanhamento) {
-                const linkAcompanhamento = document.createElement('a');
-                linkAcompanhamento.href = 'acompanhamento.html';
-                linkAcompanhamento.className = 'auth-dinamico';
-                linkAcompanhamento.textContent = 'Acompanhamento';
-                linksNav.appendChild(linkAcompanhamento);
-            }
+        // Garante link de Acompanhamento para qualquer usuário logado (cliente ou admin)
+        const jaTemAcompanhamento = Array.from(linksNav.querySelectorAll('a')).some(a => a.getAttribute('href') === 'acompanhamento.html');
+        if (!jaTemAcompanhamento) {
+            const linkAcompanhamento = document.createElement('a');
+            linkAcompanhamento.href = 'acompanhamento.html';
+            linkAcompanhamento.className = 'auth-dinamico';
+            linkAcompanhamento.textContent = 'Acompanhamento';
+            linksNav.appendChild(linkAcompanhamento);
         }
 
         const linkPerfil = document.createElement('a');
