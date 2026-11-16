@@ -23,7 +23,7 @@ const SEED_PRODUTOS = [
 ];
 
 const SEED_USUARIOS = [
-    { id: '123e4567-e89b-12d3-a456-426614174000', nome: 'Administrador', email: 'admin@familiaecia.com', telefone: '(48) 99999-0000', tipo: 'ADMINISTRADOR' },
+    { id: '9fd3d5bd-80e8-4c40-a7a5-1d1c116ee0f9', nome: 'Administrador', email: 'admin@familiaecia.com', telefone: '(48) 99999-0000', tipo: 'ADMINISTRADOR' },
     { id: '223e4567-e89b-12d3-a456-426614174001', nome: 'João Silva', email: 'joao@example.com', telefone: '(48) 98888-7777', tipo: 'CLIENTE' }
 ];
 
@@ -61,6 +61,14 @@ const LocalMock = {
 
 async function fetchAPI(endpoint, method = 'GET', body = null) {
     const sessao = (typeof obterSessao === 'function') ? obterSessao() : null;
+    const ehSessaoDemo = !!(sessao?.token && sessao.token.startsWith('demo-'));
+
+    // Se estiver usando sessão de demonstração/offline, utiliza o mock local diretamente
+    // evitando falhas de autenticação (401/403) no backend real para tokens simulados
+    if (ehSessaoDemo) {
+        console.log(`[Modo Demonstração] Usando dados locais para ${endpoint}`);
+        return executarMockLocal(endpoint, method, body);
+    }
     
     const config = {
         method,
@@ -86,10 +94,24 @@ async function fetchAPI(endpoint, method = 'GET', body = null) {
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
+        console.error('[fetchAPI] Resposta com erro:', response.status, data);
         if (response.status === 401 && sessao && typeof limparSessao === 'function') {
             limparSessao();
         }
-        const mensagem = Array.isArray(data.erros) ? data.erros.join(', ') : (data.mensagem || 'Erro na requisição');
+        let mensagem = '';
+        if (Array.isArray(data.erros) && data.erros.length > 0) {
+            mensagem = data.erros.join(', ');
+        } else if (Array.isArray(data.errors) && data.errors.length > 0) {
+            mensagem = data.errors.map(e => e.defaultMessage || e.message || JSON.stringify(e)).join(', ');
+        } else if (data.mensagem) {
+            mensagem = data.mensagem;
+        } else if (data.message) {
+            mensagem = data.message;
+        } else if (data.error && typeof data.error === 'string') {
+            mensagem = data.error;
+        } else {
+            mensagem = `Erro HTTP ${response.status} na requisição`;
+        }
         throw new Error(mensagem);
     }
 
@@ -97,8 +119,11 @@ async function fetchAPI(endpoint, method = 'GET', body = null) {
 }
 
 function executarMockLocal(endpoint, method, body) {
+    // Normaliza endpoint para remover '/api' caso venha com esse prefixo
+    const path = endpoint.startsWith('/api') ? endpoint.slice(4) : endpoint;
+
     // Categorias
-    if (endpoint.startsWith('/categorias')) {
+    if (path.startsWith('/categorias')) {
         let categorias = LocalMock.getCategorias();
         if (method === 'GET') {
             return { content: categorias, totalElements: categorias.length };
@@ -110,13 +135,13 @@ function executarMockLocal(endpoint, method, body) {
             return nova;
         }
         if (method === 'PUT') {
-            const id = endpoint.split('/')[2];
+            const id = path.split('/')[2];
             categorias = categorias.map(c => c.id === id ? { ...c, ...body } : c);
             LocalMock.setCategorias(categorias);
             return { id, ...body };
         }
         if (method === 'DELETE') {
-            const id = endpoint.split('/')[2];
+            const id = path.split('/')[2];
             categorias = categorias.filter(c => c.id !== id);
             LocalMock.setCategorias(categorias);
             // Remove também os produtos da categoria (igual ao back-end)
@@ -127,14 +152,14 @@ function executarMockLocal(endpoint, method, body) {
     }
 
     // Produtos
-    if (endpoint.startsWith('/produtos')) {
+    if (path.startsWith('/produtos')) {
         let produtos = LocalMock.getProdutos();
         if (method === 'GET') {
-            const idProduto = endpoint.split('?')[0].split('/')[2];
+            const idProduto = path.split('?')[0].split('/')[2];
             if (idProduto) {
                 return produtos.find(p => p.id === idProduto) || null;
             }
-            const queryString = endpoint.includes('?') ? endpoint.split('?')[1] : '';
+            const queryString = path.includes('?') ? path.split('?')[1] : '';
             const urlParams = new URLSearchParams(queryString);
             const idCat = urlParams.get('idCategoria');
             let filtrados = produtos;
@@ -150,13 +175,13 @@ function executarMockLocal(endpoint, method, body) {
             return novo;
         }
         if (method === 'PUT') {
-            const id = endpoint.split('/')[2];
+            const id = path.split('/')[2];
             produtos = produtos.map(p => p.id === id ? { ...p, ...body } : p);
             LocalMock.setProdutos(produtos);
             return { id, ...body };
         }
         if (method === 'DELETE') {
-            const id = endpoint.split('/')[2];
+            const id = path.split('/')[2];
             produtos = produtos.filter(p => p.id !== id);
             LocalMock.setProdutos(produtos);
             return null;
@@ -164,10 +189,10 @@ function executarMockLocal(endpoint, method, body) {
     }
 
     // Usuários
-    if (endpoint.startsWith('/usuarios')) {
+    if (path.startsWith('/usuarios')) {
         let usuarios = LocalMock.getUsuarios();
         if (method === 'GET') {
-            const idUsuario = endpoint.split('?')[0].split('/')[2];
+            const idUsuario = path.split('?')[0].split('/')[2];
             if (idUsuario) {
                 return usuarios.find(u => u.id === idUsuario) || null;
             }
@@ -180,7 +205,7 @@ function executarMockLocal(endpoint, method, body) {
             return novo;
         }
         if (method === 'PUT') {
-            const id = endpoint.split('/')[2];
+            const id = path.split('/')[2];
             usuarios = usuarios.map(u => u.id === id ? { ...u, ...body } : u);
             LocalMock.setUsuarios(usuarios);
             return { id, ...body };
@@ -188,10 +213,10 @@ function executarMockLocal(endpoint, method, body) {
     }
 
     // Pedidos
-    if (endpoint.startsWith('/pedidos')) {
+    if (path.startsWith('/pedidos')) {
         let pedidos = LocalMock.getPedidos();
         if (method === 'GET') {
-            const partes = endpoint.split('?')[0].split('/');
+            const partes = path.split('?')[0].split('/');
             if (partes.length >= 3 && partes[2]) {
                 const id = partes[2];
                 const pedido = pedidos.find(p => p.id === id);
@@ -200,36 +225,60 @@ function executarMockLocal(endpoint, method, body) {
             return { content: pedidos, totalElements: pedidos.length };
         }
         if (method === 'POST') {
-            if (endpoint.includes('/cancelar')) {
-                const id = endpoint.split('/')[2];
+            if (path.includes('/cancelar')) {
+                const id = path.split('/')[2];
                 pedidos = pedidos.map(p => p.id === id ? { ...p, status: 'CANCELADO', motivoCancelamento: body?.motivo } : p);
                 LocalMock.setPedidos(pedidos);
                 return { id, status: 'CANCELADO' };
             }
             const usuario = (typeof obterUsuarioLogado === 'function' ? obterUsuarioLogado() : null) || { nome: 'Cliente', id: 'user-anon', email: '' };
+            
+            // Garante itens completos com nome, preço e subtotal
+            const produtos = LocalMock.getProdutos();
+            const itensEnriquecidos = (body?.itens || []).map(item => {
+                const prod = produtos.find(p => String(p.id) === String(item.idProduto));
+                const preco = Number(item.precoUnitario || prod?.preco || 12.00);
+                const nome = item.nome || prod?.nome || 'Pastel';
+                const qtd = Number(item.quantidade) || 1;
+                return {
+                    idProduto: item.idProduto,
+                    nome,
+                    quantidade: qtd,
+                    precoUnitario: preco,
+                    subtotal: Number(item.subtotal || (preco * qtd))
+                };
+            });
+            const totalCalculado = itensEnriquecidos.reduce((acc, i) => acc + i.subtotal, 0);
+
             const novo = {
                 id: 'ped-' + Date.now(),
                 idUsuario: usuario.id,
                 nomeCliente: usuario.nome,
                 emailCliente: usuario.email || '',
-                precoTotal: body?.precoTotal || 15.00,
-                status: body?.status || 'AGUARDANDO_PAGAMENTO',
+                tipoEntrega: body?.tipoEntrega || 'RETIRADA',
+                endereco: body?.endereco || null,
+                formaPagamento: body?.formaPagamento || 'PIX',
+                telefone: body?.telefone || usuario.telefone || '',
+                taxaEntrega: body?.tipoEntrega === 'DELIVERY' ? 5.00 : 0.00,
+                precoTotal: Number(body?.precoTotal || totalCalculado),
+                status: 'CRIADO',
                 horarioCriacao: new Date().toISOString(),
-                ...body
+                ...body,
+                itens: itensEnriquecidos
             };
             pedidos.unshift(novo);
             LocalMock.setPedidos(pedidos);
             return novo;
         }
         if (method === 'PUT') {
-            const id = endpoint.split('/')[2];
+            const id = path.split('/')[2];
             pedidos = pedidos.map(p => p.id === id ? { ...p, ...body } : p);
             LocalMock.setPedidos(pedidos);
             return { id, ...body };
         }
     }
 
-    if (endpoint.startsWith('/auth/login')) {
+    if (path.startsWith('/auth/login') || path.startsWith('/usuarios/login')) {
         throw new Error('Falha de conexão com o servidor de autenticação.');
     }
 
@@ -238,33 +287,33 @@ function executarMockLocal(endpoint, method, body) {
 
 window.api = {
     // Autenticação
-    login: (email, senha) => fetchAPI('/auth/login', 'POST', { email, senha }),
+    login: (email, senha) => fetchAPI('/api/usuarios/login', 'POST', { email, senha }),
     me: () => fetchAPI('/me'),
 
     // Categorias
-    getCategorias: (page = 0, size = 100) => fetchAPI(`/categorias?page=${page}&size=${size}`),
-    criarCategoria: (categoria) => fetchAPI('/categorias', 'POST', categoria),
-    atualizarCategoria: (id, categoria) => fetchAPI(`/categorias/${id}`, 'PUT', categoria),
-    removerCategoria: (id) => fetchAPI(`/categorias/${id}`, 'DELETE'),
+    getCategorias: (page = 0, size = 100) => fetchAPI(`/api/categorias?page=${page}&size=${size}`),
+    criarCategoria: (categoria) => fetchAPI('/api/categorias', 'POST', categoria),
+    atualizarCategoria: (id, categoria) => fetchAPI(`/api/categorias/${id}`, 'PUT', categoria),
+    removerCategoria: (id) => fetchAPI(`/api/categorias/${id}`, 'DELETE'),
 
     // Produtos
     getProdutos: (page = 0, size = 100, idCategoria = null) =>
-        fetchAPI(`/produtos?page=${page}&size=${size}${idCategoria ? `&idCategoria=${idCategoria}` : ''}`),
-    getProduto: (id) => fetchAPI(`/produtos/${id}`),
-    criarProduto: (produto) => fetchAPI('/produtos', 'POST', produto),
-    atualizarProduto: (id, produto) => fetchAPI(`/produtos/${id}`, 'PUT', produto),
-    removerProduto: (id) => fetchAPI(`/produtos/${id}`, 'DELETE'),
+        fetchAPI(`/api/produtos?page=${page}&size=${size}${idCategoria ? `&idCategoria=${idCategoria}` : ''}`),
+    getProduto: (id) => fetchAPI(`/api/produtos/${id}`),
+    criarProduto: (produto) => fetchAPI('/api/produtos', 'POST', produto),
+    atualizarProduto: (id, produto) => fetchAPI(`/api/produtos/${id}`, 'PUT', produto),
+    removerProduto: (id) => fetchAPI(`/api/produtos/${id}`, 'DELETE'),
 
     // Usuários
-    getUsuarios: (page = 0, size = 100) => fetchAPI(`/usuarios?page=${page}&size=${size}`),
-    getUsuario: (id) => fetchAPI(`/usuarios/${id}`),
-    criarUsuario: (usuario) => fetchAPI('/usuarios', 'POST', usuario),
-    atualizarUsuario: (id, usuario) => fetchAPI(`/usuarios/${id}`, 'PUT', usuario),
+    getUsuarios: (page = 0, size = 100) => fetchAPI(`/api/usuarios?page=${page}&size=${size}`),
+    getUsuario: (id) => fetchAPI(`/api/usuarios/${id}`),
+    criarUsuario: (usuario) => fetchAPI('/api/usuarios', 'POST', usuario),
+    atualizarUsuario: (id, usuario) => fetchAPI(`/api/usuarios/${id}`, 'PUT', usuario),
 
     // Pedidos
-    criarPedido: (pedido) => fetchAPI('/pedidos', 'POST', pedido),
-    getPedidos: (page = 0, size = 30) => fetchAPI(`/pedidos?page=${page}&size=${size}`),
-    getPedido: (id) => fetchAPI(`/pedidos/${id}`),
-    atualizarPedido: (id, dados) => fetchAPI(`/pedidos/${id}`, 'PUT', dados),
-    cancelarPedido: (id, motivo) => fetchAPI(`/pedidos/${id}/cancelar`, 'POST', { motivo })
+    criarPedido: (pedido) => fetchAPI('/api/pedidos', 'POST', pedido),
+    getPedidos: (page = 0, size = 30) => fetchAPI(`/api/pedidos?page=${page}&size=${size}`),
+    getPedido: (id) => fetchAPI(`/api/pedidos/${id}`),
+    atualizarPedido: (id, dados) => fetchAPI(`/api/pedidos/${id}`, 'PUT', dados),
+    cancelarPedido: (id, motivo) => fetchAPI(`/api/pedidos/${id}/cancelar`, 'POST', { motivo })
 };

@@ -18,7 +18,11 @@ document.addEventListener('DOMContentLoaded', () => {
         enderecoInput.required = precisaEndereco;
     });
 
-    document.getElementById('btnConfirmarPedido').addEventListener('click', confirmarPedido);
+    document.getElementById('btnConfirmarPedido').addEventListener('click', () => confirmarPedido(false));
+    const btnPedirAgora = document.getElementById('btnPedirAgora');
+    if (btnPedirAgora) {
+        btnPedirAgora.addEventListener('click', () => confirmarPedido(true));
+    }
 });
 
 async function carregarCategorias() {
@@ -37,7 +41,7 @@ async function carregarCategorias() {
         btnTodas.onclick = () => filtrarPorCategoria(null, btnTodas);
         container.appendChild(btnTodas);
 
-        
+
 
         // Botões dinâmicos vindos da API/mock
         categorias.forEach((categoria) => {
@@ -45,7 +49,7 @@ async function carregarCategorias() {
             botao.type = 'button';
             botao.className = 'btn btn-outline-secondary categoria-filtro';
             botao.textContent = categoria.nome;
-            botao.onclick = () => filtrarPorCategoria(categoria.id, botao);
+            botao.onclick = () => filtrarPorCategoria(categoria.id || categoria.nome, botao);
             container.appendChild(botao);
         });
     } catch (erro) {
@@ -68,7 +72,7 @@ function renderizarProdutos(produtos) {
     const container = document.getElementById('produtos-list');
     container.innerHTML = '';
 
-    if (produtos.length === 0) {
+    if (!produtos || produtos.length === 0) {
         container.innerHTML = '<div class="col-12"><p class="text-center text-muted">Nenhum produto nessa categoria.</p></div>';
         return;
     }
@@ -102,23 +106,23 @@ function renderizarProdutos(produtos) {
     });
 }
 
-function filtrarPorCategoria(idCategoria, botaoClicado) {
+async function filtrarPorCategoria(categoriaFiltro, botaoClicado) {
     // Atualiza estado visual dos botões
-    document.querySelectorAll('.categoria-filtro').forEach((b) => b.classList.remove('active'));
-    botaoClicado.classList.add('active');
+    document.querySelectorAll('.categoria-filtro').forEach(b => b.classList.remove('active'));
+    if (botaoClicado) botaoClicado.classList.add('active');
 
-    categoriaAtiva = idCategoria; // guarda para o caso de recarregar produtos
-
-    if (!idCategoria) {
-        // "Todas" — mostra tudo
+    if (!categoriaFiltro) {
         renderizarProdutos(produtosCarregados);
         return;
     }
 
-    // Filtra comparando como string em ambos os lados (robusto ao tipo do id)
-    const filtrados = produtosCarregados.filter(
-        (produto) => String(obterIdCategoria(produto)) === String(idCategoria)
-    );
+    const filtrados = produtosCarregados.filter(p => {
+        const catId = p.idCategoria ?? p.id_categoria ?? p.categoriaId ?? p.categoria?.id ?? p.categoria;
+        const catNome = p.categoria?.nome ?? p.categoriaNome ?? '';
+        return String(catId) === String(categoriaFiltro) || 
+               String(catNome).toLowerCase() === String(categoriaFiltro).toLowerCase();
+    });
+
     renderizarProdutos(filtrados);
 }
 
@@ -145,7 +149,7 @@ function abrirModalPedido(idProduto) {
     new bootstrap.Modal(document.getElementById('pedidoModal')).show();
 }
 
-async function confirmarPedido() {
+async function confirmarPedido(irParaCarrinho = false) {
     const form = document.getElementById('pedidoForm');
     if (!form.checkValidity()) {
         form.reportValidity();
@@ -165,12 +169,28 @@ async function confirmarPedido() {
 
     const botao = document.getElementById('btnConfirmarPedido');
     botao.disabled = true;
+    
+    const produtoSelecionado = produtosCarregados.find(
+        (p) => String(p.id) === String(pedido.itens[0].idProduto)
+    );
+
     try {
-        await window.api.criarPedido(pedido);
+        Carrinho.adicionarItem({
+            id: pedido.itens[0].idProduto,
+            quantidade: pedido.itens[0].quantidade,
+            nome: produtoSelecionado ? produtoSelecionado.nome : '',
+            preco: produtoSelecionado ? produtoSelecionado.preco : 0
+        });
+        
         bootstrap.Modal.getInstance(document.getElementById('pedidoModal')).hide();
-        mostrarAlerta('Pedido realizado com sucesso!', 'success');
+
+        if (irParaCarrinho) {
+            window.location.href = 'carrinho.html';
+        } else {
+            mostrarAlerta('Produto adicionado ao carrinho com sucesso!', 'success');
+        }
     } catch (erro) {
-        mostrarAlerta(`Erro ao criar o pedido: ${erro.message}`, 'danger');
+        mostrarAlerta(`Erro ao adicionar ao carrinho: ${erro.message}`, 'danger');
     } finally {
         botao.disabled = false;
     }

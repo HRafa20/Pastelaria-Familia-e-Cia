@@ -18,9 +18,6 @@
     <!-- CSS principal do projeto -->
     <link rel="stylesheet" href="public/style/index.css">
 
-    <!-- CSS exclusivo do carrinho -->
-    <link rel="stylesheet" href="public/style/carrinho.css">
-
 </head>
 
 <body>
@@ -156,6 +153,78 @@
     </main>
 
 
+    <!-- Modal de Finalização do Pedido -->
+    <div class="modal fade" id="modalFinalizarPedido" tabindex="-1" aria-labelledby="modalFinalizarLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalFinalizarLabel">
+                        <i class="bi bi-bag-check me-2"></i>Finalizar Pedido
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="modal-alert-container"></div>
+                    <form id="formFinalizarPedido" novalidate>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="finalizar-telefone">Telefone para contato</label>
+                            <input type="tel" class="form-control" id="finalizar-telefone"
+                                placeholder="(48) 99999-9999" required>
+                            <div class="invalid-feedback">Informe seu telefone.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="finalizar-tipo-entrega">Tipo de entrega</label>
+                            <select class="form-select" id="finalizar-tipo-entrega" required>
+                                <option value="RETIRADA">Retirada no local</option>
+                                <option value="DELIVERY">Delivery</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3" id="finalizar-endereco-container" hidden>
+                            <label class="form-label fw-semibold" for="finalizar-endereco">Endereço de entrega</label>
+                            <input type="text" class="form-control" id="finalizar-endereco"
+                                placeholder="Rua, número, bairro, cidade">
+                            <div class="invalid-feedback">Informe o endereço para entrega.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="finalizar-pagamento">Forma de pagamento</label>
+                            <select class="form-select" id="finalizar-pagamento" required>
+                                <option value="PIX">PIX</option>
+                                <option value="Cartão">Cartão</option>
+                                <option value="Dinheiro">Dinheiro</option>
+                            </select>
+                        </div>
+
+                        <!-- Resumo rápido -->
+                        <div class="border rounded p-3 bg-light">
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">Itens no carrinho:</span>
+                                <strong id="modal-qtd-itens">—</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mt-1">
+                                <span class="text-muted">Total:</span>
+                                <strong id="modal-total" class="text-success">R$ —</strong>
+                            </div>
+                        </div>
+
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-pastel" id="btn-confirmar-pedido">
+                        <span id="btn-confirmar-texto"><i class="bi bi-check-lg me-1"></i>Confirmar pedido</span>
+                        <span id="btn-confirmar-loading" hidden>
+                            <span class="spinner-border spinner-border-sm me-1"></span>Enviando...
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Rodapé -->
     <div id="site-footer"></div>
 
@@ -168,8 +237,6 @@
     <script src="public/scripts/api.js"></script>
 
     <script src="public/scripts/ui.js"></script>
-
-    <script src="public/scripts/carrinho-service.js"></script>
 
     <script src="public/scripts/carrinho.js"></script>
 
