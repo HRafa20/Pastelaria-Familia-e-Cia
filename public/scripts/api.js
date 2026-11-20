@@ -1,13 +1,12 @@
 /**
- * api.js
- * Comunicação com a API backend (Spring Boot em http://localhost:8080).
- * Inclui fallback para dados locais de demonstração da Pastelaria Família & Cia
- * caso o backend esteja offline (ex: durante execução com Live Server).
+ * api.js - O "Garçom e Mensageiro" do Sistema (Comunicação com o Servidor)
+ 
  */
 
+// Endereço onde o servidor da pastelaria estaria rodando
 const API_BASE_URL = 'http://localhost:8080';
 
-// Dados iniciais da Pastelaria Família & Cia
+// Dados iniciais de teste (pastéis, categorias e clientes de exemplo para a apresentação já começar pronta):
 const SEED_CATEGORIAS = [
     { id: 'cat-pasteis', nome: 'Pastéis Salgados' },
     { id: 'cat-doces', nome: 'Pastéis Doces' },
@@ -48,6 +47,7 @@ const SEED_PEDIDOS = [
     }
 ];
 
+// O "Banco de Dados de Emergência": guarda e busca tudo dentro do navegador do cliente
 const LocalMock = {
     getCategorias: () => JSON.parse(localStorage.getItem('fc_categorias')) || SEED_CATEGORIAS,
     setCategorias: (c) => localStorage.setItem('fc_categorias', JSON.stringify(c)),
@@ -59,6 +59,7 @@ const LocalMock = {
     setPedidos: (p) => localStorage.setItem('fc_pedidos', JSON.stringify(p))
 };
 
+// Função que envia a mensagem: tenta o servidor real, e se der erro, usa o banco de dados do navegador
 async function fetchAPI(endpoint, method = 'GET', body = null) {
     const sessao = (typeof obterSessao === 'function') ? obterSessao() : null;
     const ehSessaoDemo = !!(sessao?.token && sessao.token.startsWith('demo-'));
@@ -118,6 +119,7 @@ async function fetchAPI(endpoint, method = 'GET', body = null) {
     return data;
 }
 
+// Emula endpoints REST (GET/POST/PUT/DELETE) direto no navegador para modo demonstração
 function executarMockLocal(endpoint, method, body) {
     // Normaliza endpoint para remover '/api' caso venha com esse prefixo
     const path = endpoint.startsWith('/api') ? endpoint.slice(4) : endpoint;
@@ -285,6 +287,7 @@ function executarMockLocal(endpoint, method, body) {
     return null;
 }
 
+// Objeto global de API: métodos que as telas chamam diretamente (Design Pattern: Facade)
 window.api = {
     // Autenticação
     login: (email, senha) => fetchAPI('/api/usuarios/login', 'POST', { email, senha }),

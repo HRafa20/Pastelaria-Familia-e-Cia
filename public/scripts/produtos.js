@@ -1,51 +1,72 @@
 /**
- * produtos.js
- * Administração de categorias e produtos (sem autenticação por enquanto).
+ * produtos.js - Gerenciamento de Produtos e Categorias (Painel do Dono)
+
  */
 
-let categoriasCache = [];
-let todosProdutos = []; // cache local para o filtro por categoria
-let _idCategoriaPendente = null; // id da categoria aguardando confirmação de exclusão
-let _categoriaFiltroAtiva = null; // null = "Todos"
+let categoriasCache = [];        // Guarda as categorias na memória
+let todosProdutos = [];          // Guarda os pastéis na memória para filtrar rápido
+let _idCategoriaPendente = null; // Guarda qual categoria o usuário quer excluir para pedir confirmação
+let _idProdutoPendente = null;   // Guarda qual produto o usuário quer excluir para pedir confirmação
+let _categoriaFiltroAtiva = null;// Guarda qual filtro está ativo (null = mostra todos)
 
+// Quando a tela abre, confere a segurança e carrega tudo
 document.addEventListener('DOMContentLoaded', async () => {
+    // 1. Cadeado de segurança: expulsa quem não for Administrador
     exigirAdministrador();
 
+    // 2. Busca e exibe categorias e produtos
     await carregarCategorias();
     carregarProdutos();
 
+    // Liga os botões de criar categoria e criar pastel:
     document.getElementById('categoriaForm').addEventListener('submit', criarCategoria);
     document.getElementById('btnNovoProduto').addEventListener('click', abrirModalNovoProduto);
     document.getElementById('btnSalvarProduto').addEventListener('click', salvarProduto);
 
-    // Botão de confirmação do modal de exclusão de categoria
+    // Botão vermelho de confirmação para excluir a categoria:
     document.getElementById('btnConfirmarExcluirCategoria').addEventListener('click', async () => {
         if (!_idCategoriaPendente) return;
-        const modal = bootstrap.Modal.getInstance(document.getElementById('confirmarExclusaoCategoriaModal'));
+        const modalEl = document.getElementById('confirmarExclusaoCategoriaModal');
+        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
         modal.hide();
         await removerCategoria(_idCategoriaPendente);
         _idCategoriaPendente = null;
     });
+
+    // Botão vermelho de confirmação para excluir o produto:
+    const btnExcluirProd = document.getElementById('btnConfirmarExcluirProduto');
+    if (btnExcluirProd) {
+        btnExcluirProd.addEventListener('click', async () => {
+            if (!_idProdutoPendente) return;
+            const modalEl = document.getElementById('confirmarExclusaoProdutoModal');
+            const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+            modal.hide();
+            await executarExclusaoProduto(_idProdutoPendente);
+            _idProdutoPendente = null;
+        });
+    }
 });
 
-// ─── Categorias ────────────────────────────────────────────────────────────────
+// ─── Categorias (Salgados, Doces, Bebidas, etc.) ────────────────────────────
 
+// Busca as categorias no sistema e monta na tela
 async function carregarCategorias() {
     try {
         const pagina = await window.api.getCategorias();
         categoriasCache = pagina.content || pagina;
-        renderizarCategorias();
-        preencherSelectCategorias();
+        renderizarCategorias();     // Desenha as pílulas/botões de categorias
+        preencherSelectCategorias();// Preenche a caixinha de seleção no formulário de produtos
     } catch (erro) {
         mostrarAlerta('Não foi possível carregar as categorias.', 'danger');
     }
 }
 
+// Cria os botõezinhos redondos (pills) para cada categoria, com o "X" para excluir
 function renderizarCategorias() {
     const container = document.getElementById('categorias-list');
-    container.innerHTML = '';
+    container.innerHTML = ''; // Limpa antes
 
-    // Pill "Todos" — sem id de categoria, mostra tudo
+    // Botão "Todos"
     const pillTodos = document.createElement('span');
     pillTodos.className = 'badge-tipo rounded-pill px-3 py-2 d-inline-flex align-items-center gap-2 categoria-filtro-pill active';
     pillTodos.style.cursor = 'pointer';
@@ -56,6 +77,7 @@ function renderizarCategorias() {
 
     if (categoriasCache.length === 0) return;
 
+    // Para cada categoria, cria a pílula com o nome e o "x" de exclusão:
     categoriasCache.forEach((categoria) => {
         const pill = document.createElement('span');
         pill.className = 'badge-tipo rounded-pill px-3 py-2 d-inline-flex align-items-center gap-2 categoria-filtro-pill';
@@ -68,7 +90,7 @@ function renderizarCategorias() {
                 <i class="bi bi-x-lg"></i>
             </button>
         `;
-        // Clique no nome filtra; clique no X exclui
+        // Clicar no texto filtra os pastéis; clicar no "x" abre a confirmação para deletar:
         pill.querySelector('.pill-nome').onclick = () => ativarFiltroPill(categoria.id, pill);
         pill.querySelector('.btn-excluir-categoria').onclick = (e) => {
             e.stopPropagation();
@@ -105,6 +127,7 @@ function preencherSelectCategorias() {
     });
 }
 
+// Envia nova categoria para a API
 async function criarCategoria(evento) {
     evento.preventDefault();
     const input = document.getElementById('categoria-nome');
@@ -118,10 +141,23 @@ async function criarCategoria(evento) {
     }
 }
 
+// Abre modal de confirmação para exclusão de categoria
+function confirmarExclusaoCategoria(id, nome) {
+    _idCategoriaPendente = id;
+    const nomeEl = document.getElementById('confirmar-categoria-nome');
+    if (nomeEl) nomeEl.textContent = nome || 'selecionada';
+    const modalEl = document.getElementById('confirmarExclusaoCategoriaModal');
+    if (modalEl) {
+        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modal.show();
+    }
+}
+
+// Remove categoria na API
 async function removerCategoria(id) {
     try {
         await window.api.removerCategoria(id);
-        mostrarAlerta('Categoria removida.', 'success');
+        mostrarAlerta('Categoria removida com sucesso.', 'success');
         await carregarCategorias();
         await carregarProdutos();
     } catch (erro) {
@@ -131,6 +167,7 @@ async function removerCategoria(id) {
 
 // ─── Produtos ──────────────────────────────────────────────────────────────────
 
+// Carrega os produtos da API respeitando o filtro ativo
 async function carregarProdutos() {
     const container = document.getElementById('produtos-grid');
     try {
@@ -150,6 +187,7 @@ async function carregarProdutos() {
     }
 }
 
+// Constrói os cards com foto, preço, categoria e ações de edição/exclusão
 function renderizarProdutos(produtos) {
     const container = document.getElementById('produtos-grid');
     container.innerHTML = '';
@@ -188,7 +226,7 @@ function renderizarProdutos(produtos) {
             </div>
         `;
         coluna.querySelector('.btn-outline-secondary').onclick = () => abrirModalEditarProduto(produto);
-        coluna.querySelector('.btn-outline-danger').onclick = () => excluirProduto(produto.id);
+        coluna.querySelector('.btn-outline-danger').onclick = () => confirmarExclusaoProduto(produto.id, produto.nome);
         container.appendChild(coluna);
     });
 }
@@ -213,6 +251,7 @@ function abrirModalEditarProduto(produto) {
     new bootstrap.Modal(document.getElementById('produtoModal')).show();
 }
 
+// Cria ou atualiza o produto (POST ou PUT)
 async function salvarProduto() {
     const form = document.getElementById('produtoForm');
     if (!form.checkValidity()) {
@@ -244,11 +283,28 @@ async function salvarProduto() {
     }
 }
 
-async function excluirProduto(id) {
-    if (!confirm('Excluir este produto?')) return;
+// Abre modal de confirmação para exclusão de produto
+function confirmarExclusaoProduto(id, nome) {
+    _idProdutoPendente = id;
+    const nomeEl = document.getElementById('confirmar-produto-nome');
+    if (nomeEl) nomeEl.textContent = nome || 'selecionado';
+    const modalEl = document.getElementById('confirmarExclusaoProdutoModal');
+    if (modalEl) {
+        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modal.show();
+    } else {
+        // Fallback para caso o modal não esteja presente
+        if (confirm(`Deseja realmente excluir o produto "${nome}"?`)) {
+            executarExclusaoProduto(id);
+        }
+    }
+}
+
+// Executa a exclusão do produto selecionado
+async function executarExclusaoProduto(id) {
     try {
         await window.api.removerProduto(id);
-        mostrarAlerta('Produto removido.', 'success');
+        mostrarAlerta('Produto removido com sucesso.', 'success');
         await carregarProdutos();
     } catch (erro) {
         mostrarAlerta(`Erro ao remover produto: ${erro.message}`, 'danger');

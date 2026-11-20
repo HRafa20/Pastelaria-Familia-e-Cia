@@ -1,17 +1,12 @@
 /**
- * login.js
- * Gerenciamento de autenticação e sessão.
- * 
- * ============================================================================
- * COMO ALTERAR O E-MAIL E A SENHA DE TESTE:
- * Você pode editar diretamente a lista USUARIOS_TESTE abaixo.
- * ============================================================================
+ * login.js - Tela de Entrada (Login)
+ 
  */
 
-// CREDENCIAIS DE TESTE:
+// Usuários já prontos para testar sem precisar ligar o banco de dados:
 const USUARIOS_TESTE = [
     {
-        // Administrador padrão da Pastelaria
+        // Dono da pastelaria (acesso total às telas administrativas)
         email: 'admin@familiaecia.com',
         senha: 'admin123',
         usuario: {
@@ -23,7 +18,7 @@ const USUARIOS_TESTE = [
         }
     },
     {
-        // Compatibilidade alternativa com o email anterior
+        // Compatibilidade alternativa
         email: 'admin@nonna.com',
         senha: 'admin123',
         usuario: {
@@ -35,7 +30,7 @@ const USUARIOS_TESTE = [
         }
     },
     {
-        // Usuário cliente para testes
+        // Cliente comum (só faz pedidos e acompanha o seu próprio pastel)
         email: 'joao@example.com',
         senha: 'senha123',
         usuario: {
@@ -48,6 +43,7 @@ const USUARIOS_TESTE = [
     }
 ];
 
+// Quando a tela carregar, fica esperando a pessoa clicar no botão "Entrar"
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('loginForm');
     if (form) {
@@ -55,37 +51,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// Função que faz a verificação do e-mail e senha
 async function fazerLogin(evento) {
-    evento.preventDefault();
+    evento.preventDefault(); // Impede a página de recarregar sozinha
 
+    // 1. Lê o que foi digitado nos campos de e-mail e senha:
     const email = document.getElementById('email').value.trim().toLowerCase();
     const senha = document.getElementById('senha').value;
 
-    // 1. Tentar autenticação via API backend primeiro (se o backend estiver rodando)
+    // 2. Primeiro tenta perguntar para o servidor Java/Spring Boot (se estiver ligado):
     try {
         if (window.api && typeof window.api.login === 'function') {
             const resposta = await window.api.login(email, senha);
             if (resposta && resposta.token) {
-                salvarSessao(resposta);
-                window.location.href = 'index.html';
+                salvarSessao(resposta);             // Guarda o crachá de acesso
+                window.location.href = 'index.html'; // Entra no site
                 return;
             }
         }
     } catch (erro) {
-        console.warn('API indisponível ou retorno inesperado, verificando credenciais locais:', erro.message);
-        // Se a API retornou erro de credenciais inválidas vindo do backend ativo:
+        console.warn('API indisponível, usando credenciais de teste locais:', erro.message);
         if (!erro.message.includes('Failed to fetch') && !erro.message.includes('NetworkError') && !erro.message.includes('servidor')) {
             mostrarAlerta(erro.message, 'danger');
             return;
         }
     }
 
-    // 2. Fallback de teste local: permite acessar mesmo com backend offline no Live Server
+    // 3. Se o servidor estiver desligado (ex: durante apresentação rápida), confere nos usuários de teste:
     const usuarioTeste = USUARIOS_TESTE.find(
         (u) => u.email.toLowerCase() === email && u.senha === senha
     );
 
     if (usuarioTeste) {
+        // Encontrou! Cria a sessão local e entra
         const sessaoLocal = {
             token: 'demo-jwt-token-' + Date.now(),
             usuario: usuarioTeste.usuario
@@ -95,7 +93,7 @@ async function fazerLogin(evento) {
         return;
     }
 
-    // Também verifica se foi cadastrado novo usuário pelo registro local
+    // 4. Também confere se foi um cliente que se cadastrou agora pouco pelo formulário:
     const usuariosLocais = JSON.parse(localStorage.getItem('fc_usuarios_cadastrados') || '[]');
     const usuarioCadastrado = usuariosLocais.find(
         (u) => u.email.toLowerCase() === email && u.senha === senha
@@ -111,5 +109,6 @@ async function fazerLogin(evento) {
         return;
     }
 
+    // 5. Se não bateu nenhum e-mail e senha, mostra aviso vermelho de erro:
     mostrarAlerta('E-mail ou senha incorretos.', 'danger');
 }

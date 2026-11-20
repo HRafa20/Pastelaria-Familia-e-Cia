@@ -1,17 +1,10 @@
-/**
- * acompanhamento.js
- * Exibe os pedidos do cliente logado.
- * - CLIENTE: Acessa e visualiza EXCLUSIVAMENTE os seus próprios pedidos.
- * - ADMINISTRADOR: Visualiza TODOS os pedidos de todos os clientes do sistema e pode atualizar o status.
- */
 
-// ─── Constantes ───────────────────────────────────────────────────────────────
 const ETAPAS = ['CRIADO', 'EM_PREPARO', 'SAIU_PARA_ENTREGA', 'CONCLUIDO'];
 const ETAPA_ICONES = {
-    CRIADO:              'bi-receipt',
-    EM_PREPARO:          'bi-fire',
-    SAIU_PARA_ENTREGA:   'bi-bicycle',
-    CONCLUIDO:           'bi-check-circle'
+    CRIADO:              'bi-receipt',       // Ícone da notinha
+    EM_PREPARO:          'bi-fire',          // Ícone do fogo (fritando)
+    SAIU_PARA_ENTREGA:   'bi-bicycle',       // Ícone da bike/motoboy
+    CONCLUIDO:           'bi-check-circle'   // Ícone de entregue/sucesso
 };
 const ETAPA_LABELS = {
     CRIADO:              'Pedido criado',
@@ -30,27 +23,28 @@ const STATUS_BADGE = {
 
 // ─── Estado ───────────────────────────────────────────────────────────────────
 let pedidosAtuais = [];
-let intervaloAtualizacao = null;
+let intervaloAtualizacao = null; // Guarda o reloginho do polling
 
-// ─── Inicialização ────────────────────────────────────────────────────────────
+// ─── Quando a tela abre, inicia o acompanhamento ──────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-    // Exige usuário logado (cliente ou administrador)
+    // 1. Só quem tem conta e está logado pode ver acompanhamento
     if (typeof exigirLogin === 'function') {
         exigirLogin();
     }
 
+    // 2. Busca os pedidos
     await carregarPedidos();
 
-    // Destaca pedido da URL (?id=xxx) se houver
+    // 3. Se a URL veio com o código do pedido (?id=123), rola a tela até ele com uma bordinha destacada
     const idDestaque = new URLSearchParams(window.location.search).get('id');
     if (idDestaque) {
         setTimeout(() => destacarPedido(idDestaque), 350);
     }
 
-    // Polling a cada 20s para atualizar o andamento
+    // 4. Reloginho automático: a cada 20 segundos atualiza a tela sem recarregar
     intervaloAtualizacao = setInterval(carregarPedidos, 20_000);
 
-    // Atualiza automaticamente caso um pedido seja criado ou alterado em outra aba
+    // 5. Se o cliente pedir em uma aba do navegador, a outra aba já atualiza na hora
     window.addEventListener('storage', (e) => {
         if (e.key === 'fc_pedidos' || e.key === 'pedidos') {
             carregarPedidos();
@@ -58,11 +52,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 });
 
+// Desliga o reloginho se o usuário sair da página (para economizar bateria/memória)
 window.addEventListener('beforeunload', () => {
     if (intervaloAtualizacao) clearInterval(intervaloAtualizacao);
 });
 
-// ─── Busca e filtragem de pedidos ─────────────────────────────────────────────
+// ─── Busca e separa os pedidos de cada pessoa ────────────────────────────────
 async function carregarPedidos() {
     const lista = document.getElementById('lista-pedidos');
     if (!lista) return;
@@ -71,30 +66,31 @@ async function carregarPedidos() {
         const usuario = (typeof obterUsuarioLogado === 'function') ? obterUsuarioLogado() : null;
         const souAdmin = (typeof ehAdministrador === 'function') && ehAdministrador();
 
+        // Pergunta ao sistema quais pedidos existem:
         const resposta = await window.api.getPedidos();
         let pedidos = resposta?.content || resposta || [];
 
         if (souAdmin) {
-            // ADMINISTRADOR: Acesso a TODOS os pedidos realizados
+            // SE FOR O DONO (ADMIN): enxerga TODOS os pedidos de todos os clientes
             console.log(`[Acompanhamento] Modo Administrador: visualizando ${pedidos.length} pedido(s) totais.`);
         } else {
-            // CLIENTE COMUM: Segurança estrita - visualiza APENAS os seus pedidos
+            // SE FOR CLIENTE: segurança estrita! Só enxerga os pedidos que ELE fez
             if (!usuario) {
                 pedidos = [];
             } else {
                 pedidos = pedidos.filter(p => {
                     const matchId = usuario.id && String(p.idUsuario) === String(usuario.id);
                     const matchEmail = usuario.email && p.emailCliente && (String(p.emailCliente).toLowerCase() === String(usuario.email).toLowerCase());
-                    return matchId || matchEmail;
+                    return matchId || matchEmail; // Só deixa passar o que bate com o login dele
                 });
             }
         }
 
-        // Ordena do mais recente para o mais antigo
+        // Coloca os pedidos mais recentes em cima e os mais antigos embaixo
         pedidos.sort((a, b) => new Date(b.horarioCriacao) - new Date(a.horarioCriacao));
 
         pedidosAtuais = pedidos;
-        renderizarPedidos(pedidos, souAdmin, usuario);
+        renderizarPedidos(pedidos, souAdmin, usuario); // Desenha os cards na tela
 
     } catch (erro) {
         console.error('[Acompanhamento] Erro ao carregar pedidos:', erro);
@@ -106,11 +102,12 @@ async function carregarPedidos() {
     }
 }
 
-// ─── Renderização ─────────────────────────────────────────────────────────────
+// ─── Desenha os cartões de pedidos com a linha do tempo ──────────────────────
 function renderizarPedidos(pedidos, souAdmin, usuario) {
     const lista = document.getElementById('lista-pedidos');
     if (!lista) return;
 
+    // Se for o dono, mostra uma faixinha amarela avisando que é visão de Administrador
     let bannerAdminHTML = '';
     if (souAdmin) {
         bannerAdminHTML = `
@@ -125,6 +122,7 @@ function renderizarPedidos(pedidos, souAdmin, usuario) {
             </div>`;
     }
 
+    // Se não tiver nenhum pedido ainda:
     if (pedidos.length === 0) {
         if (souAdmin) {
             lista.innerHTML = `
@@ -148,6 +146,7 @@ function renderizarPedidos(pedidos, souAdmin, usuario) {
         return;
     }
 
+    // Cria o cartão visual para cada pedido com sua linha do tempo:
     lista.innerHTML = bannerAdminHTML + pedidos.map(pedido => _htmlPedido(pedido, souAdmin)).join('');
 }
 
@@ -259,6 +258,7 @@ function _htmlPedido(pedido, souAdmin) {
 }
 
 // ─── Ação exclusiva do Admin: Alterar status ───────────────────────────────────
+// Atualiza o status de preparo do pedido direto pelo select da tela
 window.mudarStatusAdmin = async function(idPedido, novoStatus) {
     try {
         await window.api.atualizarPedido(idPedido, { status: novoStatus });

@@ -1,19 +1,25 @@
-// ─── Objeto global Carrinho ───────────────────────────────────────────────────
-window.Carrinho = {
-    _chave: 'carrinho',
+/**
+ * carrinho.js - Gerenciamento da Sacola de Compras e Envio do Pedido
+ */
 
+// ─── Objeto Carrinho: Cuida de guardar, somar e alterar os pastéis ──────────
+window.Carrinho = {
+    _chave: 'carrinho', // Nome da "gaveta" na memória do navegador onde os itens ficam salvos
+
+    // Coloca um pastel no carrinho (ou aumenta o número se já estava lá):
     adicionarItem(item) {
-        let itens = this.obterItens();
+        let itens = this.obterItens(); // Pega o que já tem na sacola
         const index = itens.findIndex(i => i.id === item.id);
         if (index > -1) {
-            itens[index].quantidade += item.quantidade;
+            itens[index].quantidade += item.quantidade; // Se já tinha pastel de carne, só aumenta a quantidade
         } else {
-            itens.push(item);
+            itens.push(item); // Se for um sabor novo, adiciona na lista
         }
-        localStorage.setItem(this._chave, JSON.stringify(itens));
-        this.atualizarBadgeNav();
+        localStorage.setItem(this._chave, JSON.stringify(itens)); // Salva na memória do celular
+        this.atualizarBadgeNav(); // Atualiza a contagem no topo da tela
     },
 
+    // Lê a lista de pastéis que estão salvos na memória do celular
     obterItens() {
         try {
             return JSON.parse(localStorage.getItem(this._chave)) || [];
@@ -22,63 +28,70 @@ window.Carrinho = {
         }
     },
 
+    // Soma quantos pastéis tem no total (ex: 2 de queijo + 1 de carne = 3)
     obterQuantidadeTotal() {
         return this.obterItens().reduce((t, i) => t + (Number(i.quantidade) || 0), 0);
     },
 
+    // Multiplica quantidade x preço de cada um e devolve o valor total em R$
     obterTotal() {
         return this.obterItens().reduce((t, i) => t + (Number(i.preco) * Number(i.quantidade)), 0);
     },
 
+    // Tira um pastel da sacola quando o cliente clica no botão da lixeira
     removerItem(id) {
         const itens = this.obterItens().filter(i => i.id !== id);
-        localStorage.setItem(this._chave, JSON.stringify(itens));
-        this.atualizarBadgeNav();
+        localStorage.setItem(this._chave, JSON.stringify(itens)); // Salva a lista sem o item removido
+        this.atualizarBadgeNav(); // Atualiza o contador visual
     },
 
+    // Se o cliente digitar outra quantidade no campinho numérico (ex: mudar de 1 para 5)
     alterarQuantidade(id, quantidade) {
         const itens = this.obterItens();
         const item = itens.find(i => i.id === id);
         if (!item) return;
         item.quantidade = parseInt(quantidade) || 1;
-        if (item.quantidade <= 0) { this.removerItem(id); return; }
+        if (item.quantidade <= 0) { this.removerItem(id); return; } // Se colocou 0, remove o pastel
         localStorage.setItem(this._chave, JSON.stringify(itens));
         this.atualizarBadgeNav();
     },
 
+    // Esvazia a sacola (usado logo após o cliente enviar o pedido)
     limpar() {
         localStorage.removeItem(this._chave);
         this.atualizarBadgeNav();
     },
 
+    // Atualiza a bolinha amarela com o número no ícone do carrinho no menu
     atualizarBadgeNav() {
         document.querySelectorAll('.cart-count-badge, #carrinho-quantidade-badge').forEach(el => {
             const qtd = this.obterQuantidadeTotal();
             el.textContent = qtd;
-            if (el.style !== undefined) el.style.display = qtd > 0 ? '' : 'none';
+            if (el.style !== undefined) el.style.display = qtd > 0 ? '' : 'none'; // Some se estiver vazio
         });
     }
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Transforma número em formato de dinheiro (ex: 12 vira "12,00")
 function formatarPrecoCarrinho(valor) {
     const n = Number(valor);
     return isNaN(n) ? '0,00' : n.toFixed(2).replace('.', ',');
 }
 
-// ─── Renderização da lista do carrinho ────────────────────────────────────────
+// ─── Desenha a lista do carrinho na tela ─────────────────────────────────────
 function renderizarCarrinho() {
     const lista = document.getElementById('carrinho-lista');
     if (!lista) return;
 
-    // Sanitiza itens corrompidos (sem preco ou sem nome)
     let itens = Carrinho.obterItens();
+    // Limpeza de segurança: remove itens com defeito se houver
     const itensSaos = itens.filter(i => i.nome && i.preco != null && !isNaN(Number(i.preco)));
     if (itensSaos.length !== itens.length) {
         localStorage.setItem(Carrinho._chave, JSON.stringify(itensSaos));
         itens = itensSaos;
     }
 
+    // Se a sacola estiver vazia, mostra mensagem amigável e botão para ir ao cardápio:
     if (itens.length === 0) {
         lista.innerHTML = `
             <div class="text-center py-5 text-muted">
@@ -86,10 +99,11 @@ function renderizarCarrinho() {
                 <p class="mt-3">Seu carrinho está vazio.</p>
                 <a href="cardapio.html" class="btn btn-pastel mt-2">Ver cardápio</a>
             </div>`;
-        _setResumo(0, 0);
+        _setResumo(0, 0); // Zera o valor total
         return;
     }
 
+    // Cria uma linha visual para cada pastel (com nome, preço, caixinha de quantidade e lixeira):
     lista.innerHTML = itens.map(item => `
         <div class="d-flex justify-content-between align-items-center border-bottom py-3 gap-3">
             <div class="flex-grow-1">
@@ -97,12 +111,15 @@ function renderizarCarrinho() {
                 <div class="text-muted small">R$ ${formatarPrecoCarrinho(item.preco)} cada</div>
             </div>
             <div class="d-flex align-items-center gap-2">
+                <!-- Campo para aumentar ou diminuir a quantidade -->
                 <input type="number" min="1" value="${Number(item.quantidade)}"
                     class="form-control form-control-sm" style="width:70px"
                     onchange="Carrinho.alterarQuantidade('${_escHtml(item.id)}', this.value); renderizarCarrinho();">
+                <!-- Subtotal deste pastel (quantidade x preço unitário) -->
                 <span class="fw-bold" style="min-width:70px; text-align:right">
                     R$ ${formatarPrecoCarrinho(item.preco * item.quantidade)}
                 </span>
+                <!-- Botão de lixeira para excluir -->
                 <button class="btn btn-sm btn-outline-danger"
                     onclick="Carrinho.removerItem('${_escHtml(item.id)}'); renderizarCarrinho();"
                     title="Remover">
@@ -112,9 +129,11 @@ function renderizarCarrinho() {
         </div>
     `).join('');
 
+    // Atualiza a caixinha lateral com o valor final da compra:
     _setResumo(Carrinho.obterQuantidadeTotal(), Carrinho.obterTotal());
 }
 
+// Atualiza os textos de Subtotal e Total na tela
 function _setResumo(qtd, total) {
     const elQtd      = document.getElementById('carrinho-quantidade');
     const elSubtotal = document.getElementById('carrinho-subtotal');
@@ -124,41 +143,45 @@ function _setResumo(qtd, total) {
     if (elTotal)    elTotal.textContent    = `R$ ${formatarPrecoCarrinho(total)}`;
 }
 
+// Evita erros de caracteres especiais no texto (segurança básica)
 function _escHtml(str) {
     return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// ─── Modal de finalização ─────────────────────────────────────────────────────
+// ─── Abre a janela para fechar o pedido ──────────────────────────────────────
 function abrirModalFinalizar() {
     const itens = Carrinho.obterItens();
+    // 1. Não deixa finalizar se a sacola estiver vazia
     if (itens.length === 0) {
         alert('Adicione produtos ao carrinho antes de finalizar.');
         return;
     }
 
+    // 2. Não deixa pedir sem estar logado
     if (typeof estaLogado === 'function' && !estaLogado()) {
         alert('Você precisa entrar na sua conta para finalizar o pedido.');
         window.location.href = 'login.html';
         return;
     }
 
+    // 3. Administrador não pode fazer pedido (apenas clientes)
     if (typeof ehAdministrador === 'function' && ehAdministrador()) {
         alert('Contas de administrador não realizam pedidos. Entre com uma conta de cliente.');
         return;
     }
 
-    // Preenche resumo rápido no modal
+    // Coloca a quantidade e o total na janelinha
     const elQtd   = document.getElementById('modal-qtd-itens');
     const elTotal = document.getElementById('modal-total');
     if (elQtd)   elQtd.textContent   = Carrinho.obterQuantidadeTotal() + ' item(s)';
     if (elTotal) elTotal.textContent = `R$ ${formatarPrecoCarrinho(Carrinho.obterTotal())}`;
 
-    // Pré-preenche dados da sessão, se disponíveis
+    // Pega o telefone do cliente já cadastrado e preenche automaticamente
     const usuario = (typeof obterUsuarioLogado === 'function') ? obterUsuarioLogado() : null;
     const telInput = document.getElementById('finalizar-telefone');
     if (telInput && usuario?.telefone) telInput.value = usuario.telefone;
 
-    // Reset
+    // Abre a janela de confirmação
     const form = document.getElementById('formFinalizarPedido');
     if (form) { form.classList.remove('was-validated'); }
     document.getElementById('modal-alert-container').innerHTML = '';
@@ -166,7 +189,7 @@ function abrirModalFinalizar() {
     new bootstrap.Modal(document.getElementById('modalFinalizarPedido')).show();
 }
 
-// ─── Lógica do tipo de entrega ────────────────────────────────────────────────
+// Alterna o campo de endereço: mostra se for entrega, esconde se for retirada no balcão
 function _configurarEntrega() {
     const select    = document.getElementById('finalizar-tipo-entrega');
     const container = document.getElementById('finalizar-endereco-container');
@@ -175,17 +198,17 @@ function _configurarEntrega() {
 
     select.addEventListener('change', () => {
         const delivery = select.value === 'DELIVERY';
-        container.hidden  = !delivery;
-        input.required    = delivery;
+        container.hidden  = !delivery; // Esconde ou mostra
+        input.required    = delivery;  // Se for entrega, o endereço é obrigatório
     });
 }
 
-// ─── Envio do pedido ──────────────────────────────────────────────────────────
+// ─── Envia o pedido definitivo para a pastelaria ─────────────────────────────
 async function finalizarPedido() {
     const form = document.getElementById('formFinalizarPedido');
     if (!form) return;
 
-    // Validação HTML5
+    // Checa se todos os campos foram preenchidos corretamente
     form.classList.add('was-validated');
     if (!form.checkValidity()) return;
 
@@ -207,7 +230,7 @@ async function finalizarPedido() {
         return;
     }
 
-    // Monta payload estritamente compatível com o backend Spring Boot
+    // Monta o "pacote" com todos os dados do pedido para enviar ao servidor:
     const payload = {
         tipoEntrega,
         endereco:       tipoEntrega === 'DELIVERY' ? endereco : null,
@@ -219,20 +242,21 @@ async function finalizarPedido() {
         }))
     };
 
-    // UI: estado de carregamento
+    // Coloca o botão em modo "carregando..." para evitar cliques duplos
     _setBotaoCarregando(true);
 
     try {
+        // Envia o pedido para o sistema da pastelaria:
         const pedidoCriado = await window.api.criarPedido(payload);
 
-        // Limpa o carrinho local
+        // Pedido deu certo! Esvazia o carrinho e redesenha a tela:
         Carrinho.limpar();
         renderizarCarrinho();
 
-        // Fecha o modal
+        // Fecha a janelinha
         bootstrap.Modal.getInstance(document.getElementById('modalFinalizarPedido')).hide();
 
-        // Redireciona para acompanhamento após breve delay
+        // Leva o cliente imediatamente para a tela de acompanhamento do pedido
         const idRetornado = pedidoCriado?.id || pedidoCriado?.numero || '';
         setTimeout(() => {
             window.location.href = idRetornado ? `acompanhamento.html?id=${idRetornado}` : 'acompanhamento.html';
@@ -242,10 +266,11 @@ async function finalizarPedido() {
         console.error('[finalizarPedido]', erro);
         _mostrarAlertaModal(`Erro ao criar pedido: ${erro.message}`, 'danger');
     } finally {
-        _setBotaoCarregando(false);
+        _setBotaoCarregando(false); // Libera o botão
     }
 }
 
+// Mostra o spinnerzinho de "enviando pedido..." no botão
 function _setBotaoCarregando(ativo) {
     const btn     = document.getElementById('btn-confirmar-pedido');
     const texto   = document.getElementById('btn-confirmar-texto');
@@ -256,6 +281,7 @@ function _setBotaoCarregando(ativo) {
     loading.hidden     = !ativo;
 }
 
+// Mostra aviso de erro dentro da janela
 function _mostrarAlertaModal(msg, tipo = 'danger') {
     const container = document.getElementById('modal-alert-container');
     if (!container) return;
@@ -266,24 +292,24 @@ function _mostrarAlertaModal(msg, tipo = 'danger') {
         </div>`;
 }
 
-// ─── DOMContentLoaded ─────────────────────────────────────────────────────────
+// ─── Quando a página abre, ativa os botões e carrega a lista ────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    // Configura o botão "Finalizar pedido" para abrir o modal
+    // Botão que abre a janela de finalizar compra
     const btnFinalizar = document.getElementById('btn-finalizar');
     if (btnFinalizar) {
         btnFinalizar.addEventListener('click', abrirModalFinalizar);
     }
 
-    // Configura o botão "Confirmar pedido" dentro do modal
+    // Botão verde que confirma e envia o pedido
     const btnConfirmar = document.getElementById('btn-confirmar-pedido');
     if (btnConfirmar) {
         btnConfirmar.addEventListener('click', finalizarPedido);
     }
 
-    // Configura toggle do campo de endereço
+    // Configura a troca entre entrega ou retirada
     _configurarEntrega();
 
-    // Renderiza o carrinho se estiver na página do carrinho
+    // Se estiver na tela do carrinho, desenha os itens
     if (document.getElementById('carrinho-lista')) {
         renderizarCarrinho();
     }

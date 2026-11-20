@@ -1,36 +1,80 @@
-/* Barra de navegação */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+
+/* =====================================
+   NAVBAR — responsiva com hamburguer
+===================================== */
 nav {
-    background-color: #E9DFC9;
-    padding: 20px;
+    background-color: #2b1207;
+    padding: 0 20px;
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
+    min-height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
     gap: 12px;
-    flex-wrap: wrap;
+}
+
+/* Nome / marca */
+.nav-brand {
+    color: #ffc947 !important;
+    text-decoration: none;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.15rem;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Links do menu */
+.links-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: nowrap;
+}
+
+nav .links-nav a {
+    color: #dfc9ad;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: all 0.25s ease;
+    white-space: nowrap;
+}
+
+nav .links-nav a:hover {
+    background-color: rgba(255, 201, 71, 0.15);
+    color: #ffc947;
+}
+
+nav .links-nav a.ativo {
+    background-color: rgba(255, 201, 71, 0.2);
+    color: #ffc947;
+}
+
+/* Botão hamburguer — oculto no desktop */
+.nav-toggle {
+    display: none;
+    background: transparent;
+    border: none;
+    color: #ffc947;
+    font-size: 1.7rem;
+    cursor: pointer;
+    padding: 4px 6px;
+    line-height: 1;
+    flex-shrink: 0;
 }
 
 /* Links */
-nav a {
-    color: #896747;
-    text-decoration: none;
-    font-size: 16px;
-    font-weight: 600;
-    padding: 12px 18px;
-    border-radius: 8px;
-    transition: all 0.3s ease;
-}
+/* (estilos de nav a herdados pelo .links-nav — ver acima) */
 
-/* Ao passar o mouse */
-nav a:hover {
-    background-color: #C49A6C;
-    color: #FFF9ED;
-}
+/* Ao passar o mouse e link ativo — via .links-nav */
 
 /* Link da página atual */
-nav a.ativo {
-    background-color: #D5BD9B;
-    color: #65452F;
-}
 
 :root {
     --brown: #432719;
@@ -137,25 +181,35 @@ a {
 
 .feature-card {
     height: 100%;
-    padding: 30px;
+    padding: 32px 28px;
     border: 1px solid #f1e2d4;
     border-radius: 18px;
     background: white;
-    box-shadow: 0 8px 28px #5a30100c
+    box-shadow: 0 8px 28px #5a30100c;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 16px 36px #5a301018;
 }
 
 .feature-card h3 {
-    font-size: 1.35rem
+    font-size: 1.25rem;
+    margin-bottom: 10px;
 }
 
 .feature-card p {
     color: #76675e;
-    margin: 0
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.55;
 }
 
 .feature-icon {
-    font-size: 2.4rem;
-    margin-bottom: 15px
+    font-size: 2.6rem;
+    margin-bottom: 18px;
+    display: block;
 }
 
 .cta {
@@ -797,6 +851,10 @@ body {
 
 /* Ícone do carrinho na Navbar */
 
+.link-carrinho .cart-text {
+    display: none;
+}
+
 .link-carrinho {
     position: relative;
     display: inline-flex;
@@ -1281,5 +1339,226 @@ body {
   .carrossel-pasteis img { height: 240px; }
 }
 
+/* hero eyebrow dourado */
+.hero .eyebrow {
+    color: var(--gold);
+    display: block;
+    margin-bottom: 8px;
+}
 
+/* carrossel altura padrão */
+.carrossel-pasteis img {
+    height: 420px;
+    object-fit: cover;
+}
+
+/* =====================================
+   RESPONSIVIDADE COMPLETA
+===================================== */
+
+/* --- Tablet grande / Desktop pequeno (≤ 991px) --- */
+@media (max-width: 991px) {
+    nav {
+        padding: 0 16px;
+    }
+
+    nav .links-nav a {
+        font-size: 13px;
+        padding: 7px 9px;
+    }
+}
+
+/* --- Tablet (≤ 768px) --- */
+@media (max-width: 768px) {
+    /* Navbar: hamburguer */
+    .nav-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .links-nav {
+        display: none;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 2px;
+        width: 100%;
+        padding: 10px 0 14px;
+        border-top: 1px solid rgba(255, 201, 71, 0.15);
+    }
+
+    .links-nav.nav-open {
+        display: flex;
+    }
+
+    nav {
+        flex-wrap: wrap;
+        padding: 0 16px;
+        min-height: 60px;
+    }
+
+    /* O brand e o botão ficam na mesma linha */
+    .nav-brand {
+        flex: 1;
+    }
+
+    nav .links-nav a {
+        font-size: 15px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        width: 100%;
+        display: block;
+    }
+
+    nav .links-nav a:hover {
+        background-color: rgba(255, 201, 71, 0.15);
+        color: #ffc947;
+    }
+
+    /* Carrinho no menu mobile */
+    nav .links-nav a.link-carrinho {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        font-size: 15px;
+        padding: 10px 14px !important;
+        color: #dfc9ad !important;
+        transform: none !important;
+        gap: 6px;
+    }
+
+    nav .links-nav a.link-carrinho:hover {
+        background-color: rgba(255, 201, 71, 0.15) !important;
+        color: #ffc947 !important;
+        transform: none !important;
+    }
+
+    nav .links-nav a.link-carrinho.ativo {
+        background-color: rgba(255, 201, 71, 0.2) !important;
+        color: #ffc947 !important;
+    }
+
+    nav .links-nav a.link-carrinho i {
+        display: none !important;
+    }
+
+    nav .links-nav a.link-carrinho .cart-text {
+        display: inline !important;
+    }
+
+    nav .links-nav a.link-carrinho .cart-count-badge {
+        position: static;
+        margin-left: 6px;
+    }
+
+    /* Hero */
+    .hero {
+        min-height: auto;
+        padding: 10px 0;
+    }
+
+    .hero h1 {
+        font-size: clamp(2rem, 7vw, 2.8rem);
+    }
+
+    .hero .lead {
+        font-size: 1rem;
+    }
+
+    /* Carrossel */
+    .carrossel-pasteis img {
+        height: 280px;
+    }
+
+    /* Cards de diferenciais: 2 por linha */
+    .feature-card {
+        padding: 24px 20px;
+    }
+}
+
+/* --- Mobile (≤ 575px) --- */
+@media (max-width: 575px) {
+    /* Hero mais compacto */
+    .hero {
+        min-height: auto;
+    }
+
+    .hero .container {
+        padding-top: 2.5rem !important;
+        padding-bottom: 2.5rem !important;
+    }
+
+    .hero h1 {
+        font-size: 1.9rem;
+        margin: 10px 0;
+    }
+
+    .hero .lead {
+        font-size: 0.95rem;
+        max-width: 100%;
+    }
+
+    .hero .btn {
+        width: 100%;
+        text-align: center;
+        font-size: 1rem;
+    }
+
+    /* Carrossel bem menor no mobile */
+    .carrossel-pasteis img {
+        height: 200px;
+    }
+
+    /* Cards empilhados: 1 por linha (bootstrap já cuida com col-12) */
+    .feature-card {
+        padding: 22px 18px;
+    }
+
+    .feature-icon {
+        font-size: 2.2rem;
+        margin-bottom: 12px;
+    }
+
+    .feature-card h3 {
+        font-size: 1.1rem;
+    }
+
+    .feature-card p {
+        font-size: 0.9rem;
+    }
+
+    /* Rodapé */
+    footer {
+        padding: 20px 16px;
+        font-size: 0.85rem;
+    }
+
+    /* Container principal */
+    main.container {
+        padding-top: 1.5rem !important;
+        padding-bottom: 1.5rem !important;
+    }
+}
+
+/* --- Mobile muito pequeno (≤ 360px) --- */
+@media (max-width: 360px) {
+    .nav-brand {
+        font-size: 0.95rem;
+    }
+
+    .hero h1 {
+        font-size: 1.65rem;
+    }
+
+    .hero .btn {
+        font-size: 0.95rem;
+        padding: 0.6rem 1.2rem;
+    }
+
+    .carrossel-pasteis img {
+        height: 165px;
+    }
+}
+
+/* ===== FIM DOS ESTILOS ATIVOS ===== */
 
