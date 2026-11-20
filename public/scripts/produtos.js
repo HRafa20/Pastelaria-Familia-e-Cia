@@ -110,9 +110,8 @@ function ativarFiltroPill(idCategoria, pillClicado) {
         renderizarProdutos(todosProdutos);
         return;
     }
-    const filtrados = todosProdutos.filter(
-        (produto) => String(obterIdCategoria(produto)) === String(idCategoria)
-    );
+    const catObj = categoriasCache.find(c => String(c.id) === String(idCategoria)) || { id: idCategoria, nome: idCategoria };
+    const filtrados = todosProdutos.filter((produto) => produtoPertenceACategoria(produto, catObj));
     renderizarProdutos(filtrados);
 }
 
@@ -198,14 +197,15 @@ function renderizarProdutos(produtos) {
     }
 
     produtos.forEach((produto) => {
-        const categoria = categoriasCache.find((c) => String(c.id) === obterIdCategoria(produto));
+        const categoria = categoriasCache.find((c) => produtoPertenceACategoria(produto, c));
 
         // Prévia da imagem (se houver)
         let imagemHTML = '';
-        if (produto.imagem) {
-            imagemHTML = /[\/.]/.test(produto.imagem)
-                ? `<img src="${produto.imagem}" alt="${produto.nome}" class="cardapio-img rounded mb-2">`
-                : `<span class="fs-2 d-block mb-2">${produto.imagem}</span>`;
+        const urlImagem = produto.imagemUrl || produto.imagem;
+        if (urlImagem) {
+            imagemHTML = /[\/.]/.test(urlImagem)
+                ? `<img src="${urlImagem}" alt="${produto.nome}" class="cardapio-img rounded mb-2">`
+                : `<span class="fs-2 d-block mb-2">${urlImagem}</span>`;
         }
 
         const coluna = document.createElement('div');
@@ -215,7 +215,7 @@ function renderizarProdutos(produtos) {
                 ${imagemHTML}
                 <div class="d-flex justify-content-between align-items-start">
                     <h5>${produto.nome}</h5>
-                    <span class="badge-tipo rounded-pill px-2 py-1 small">${categoria ? categoria.nome : '—'}</span>
+                    <span class="badge-tipo rounded-pill px-2 py-1 small">${categoria ? categoria.nome : (produto.categoria || '—')}</span>
                 </div>
                 <p class="text-muted small">${produto.descricao || ''}</p>
                 <p class="mb-2">R$ ${formatarPreco(produto.preco)}</p>
@@ -245,8 +245,10 @@ function abrirModalEditarProduto(produto) {
     document.getElementById('produto-nome').value = produto.nome;
     document.getElementById('produto-descricao').value = produto.descricao || '';
     document.getElementById('produto-preco').value = produto.preco;
-    document.getElementById('produto-categoria').value = obterIdCategoria(produto);
-    document.getElementById('produto-imagem').value = produto.imagem || '';
+    
+    const catEncontrada = categoriasCache.find(c => produtoPertenceACategoria(produto, c));
+    document.getElementById('produto-categoria').value = catEncontrada ? catEncontrada.id : (obterIdCategoria(produto) || '');
+    document.getElementById('produto-imagem').value = produto.imagemUrl || produto.imagem || '';
     document.getElementById('produtoModalTitulo').textContent = 'Editar produto';
     new bootstrap.Modal(document.getElementById('produtoModal')).show();
 }
@@ -260,12 +262,19 @@ async function salvarProduto() {
     }
 
     const id = document.getElementById('produto-id').value;
+    const catId = document.getElementById('produto-categoria').value;
+    const catObj = categoriasCache.find(c => String(c.id) === String(catId));
+    const catNome = catObj ? catObj.nome : (catId || 'Geral');
+
     const produto = {
-        nome: document.getElementById('produto-nome').value,
+        nome: document.getElementById('produto-nome').value.trim(),
         descricao: document.getElementById('produto-descricao').value || null,
         preco: parseFloat(document.getElementById('produto-preco').value),
-        idCategoria: document.getElementById('produto-categoria').value,
-        imagem: document.getElementById('produto-imagem').value || null
+        categoria: catNome,
+        idCategoria: catId,
+        imagem: document.getElementById('produto-imagem').value || null,
+        imagemUrl: document.getElementById('produto-imagem').value || null,
+        disponivel: true
     };
 
     try {
@@ -309,4 +318,51 @@ async function executarExclusaoProduto(id) {
     } catch (erro) {
         mostrarAlerta(`Erro ao remover produto: ${erro.message}`, 'danger');
     }
+}
+
+// Verifica se um produto pertence a uma categoria considerando IDs, nomes ou termos (singular/plural)
+function produtoPertenceACategoria(produto, categoriaAlvo) {
+    if (!categoriaAlvo) return true;
+
+    // Normaliza categoria alvo (pode ser objeto { id, nome } ou string)
+    const idAlvo = typeof categoriaAlvo === 'object' ? String(categoriaAlvo.id ?? '') : String(categoriaAlvo);
+    const nomeAlvo = typeof categoriaAlvo === 'object' ? String(categoriaAlvo.nome ?? '') : String(categoriaAlvo);
+
+    // Campos de categoria do produto
+    const idProd = String(produto.idCategoria ?? produto.id_categoria ?? produto.categoriaId ?? produto.categoria?.id ?? '').trim();
+    const nomeProd = String(produto.categoria?.nome ?? produto.categoriaNome ?? produto.categoria ?? '').trim();
+
+    // 1. Comparação direta por ID (ex: 'cat-pasteis', '1', etc)
+    if (idAlvo && (idProd === idAlvo || String(produto.idCategoria) === idAlvo)) {
+        return true;
+    }
+
+    // 2. Classificação precisa por grupo semântico (Doce, Bebida, Salgado)
+    const textoAlvo = `${idAlvo} ${nomeAlvo}`.toLowerCase();
+    const isAlvoDoce = textoAlvo.includes('doce') || textoAlvo.includes('cat-doces');
+    const isAlvoBebida = textoAlvo.includes('bebid') || textoAlvo.includes('suco') || textoAlvo.includes('refrig') || textoAlvo.includes('cat-bebidas');
+    const isAlvoSalgado = textoAlvo.includes('salgad') || textoAlvo.includes('cat-pasteis');
+
+    const textoProd = `${idProd} ${nomeProd} ${produto.nome || ''}`.toLowerCase();
+    const isProdDoce = textoProd.includes('doce') || textoProd.includes('cat-doces') || textoProd.includes('chocolate');
+    const isProdBebida = textoProd.includes('bebid') || textoProd.includes('suco') || textoProd.includes('refrig') || textoProd.includes('cat-bebidas');
+    const isProdSalgado = textoProd.includes('salgad') || textoProd.includes('cat-pasteis') || (!isProdDoce && !isProdBebida);
+
+    // 3. Aplica o filtro estrito: Doce só mostra Doce, Bebida só mostra Bebida, Salgado só mostra Salgado
+    if (isAlvoDoce) return isProdDoce;
+    if (isAlvoBebida) return isProdBebida;
+    if (isAlvoSalgado) return isProdSalgado && !isProdDoce && !isProdBebida;
+
+    // 4. Fallback para categorias adicionais (compara texto exato sem acentos)
+    const normAlvo = normalizarTexto(nomeAlvo || idAlvo);
+    const normProd = normalizarTexto(nomeProd || idProd);
+    return normAlvo === normProd || (normAlvo && normProd.includes(normAlvo));
+}
+
+function normalizarTexto(texto) {
+    return String(texto || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
 }

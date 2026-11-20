@@ -63,14 +63,25 @@ async function fazerLogin(evento) {
     try {
         if (window.api && typeof window.api.login === 'function') {
             const resposta = await window.api.login(email, senha);
-            if (resposta && resposta.token) {
-                salvarSessao(resposta);             // Guarda o crachá de acesso
+            if (resposta && (resposta.id || resposta.email || resposta.token)) {
+                const usuario = resposta.usuario || resposta;
+                const sessao = {
+                    token: resposta.token || `token-${usuario.id}`,
+                    usuario: {
+                        id: usuario.id,
+                        nome: usuario.nome,
+                        email: usuario.email,
+                        telefone: usuario.telefone,
+                        tipo: (usuario.tipo || 'CLIENTE').toUpperCase()
+                    }
+                };
+                salvarSessao(sessao);             // Guarda o crachá de acesso
                 window.location.href = 'index.html'; // Entra no site
                 return;
             }
         }
     } catch (erro) {
-        console.warn('API indisponível, usando credenciais de teste locais:', erro.message);
+        console.warn('API indisponível ou credenciais rejeitadas pelo servidor:', erro.message);
         if (!erro.message.includes('Failed to fetch') && !erro.message.includes('NetworkError') && !erro.message.includes('servidor')) {
             mostrarAlerta(erro.message, 'danger');
             return;

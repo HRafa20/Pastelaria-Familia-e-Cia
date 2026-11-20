@@ -38,7 +38,7 @@ const SEED_PEDIDOS = [
         formaPagamento: 'PIX',
         taxaEntrega: 5.00,
         precoTotal: 27.00,
-        status: 'EM_ANDAMENTO',
+        status: 'EM_PREPARO',
         horarioCriacao: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
         itens: [
             { idProduto: 'prod-1', nome: 'Pastel de Carne', quantidade: 1, precoUnitario: 12.00, subtotal: 12.00 },
@@ -62,20 +62,14 @@ const LocalMock = {
 // Função que envia a mensagem: tenta o servidor real, e se der erro, usa o banco de dados do navegador
 async function fetchAPI(endpoint, method = 'GET', body = null) {
     const sessao = (typeof obterSessao === 'function') ? obterSessao() : null;
-    const ehSessaoDemo = !!(sessao?.token && sessao.token.startsWith('demo-'));
-
-    // Se estiver usando sessão de demonstração/offline, utiliza o mock local diretamente
-    // evitando falhas de autenticação (401/403) no backend real para tokens simulados
-    if (ehSessaoDemo) {
-        console.log(`[Modo Demonstração] Usando dados locais para ${endpoint}`);
-        return executarMockLocal(endpoint, method, body);
-    }
+    const emailAdmin = sessao?.usuario?.email;
     
     const config = {
         method,
         headers: {
             'Content-Type': 'application/json',
-            ...(sessao ? { Authorization: `Bearer ${sessao.token}` } : {})
+            ...(sessao?.token ? { Authorization: `Bearer ${sessao.token}` } : {}),
+            ...(emailAdmin ? { 'X-Admin-Email': emailAdmin } : {})
         },
     };
     if (body !== null) config.body = JSON.stringify(body);
@@ -96,7 +90,7 @@ async function fetchAPI(endpoint, method = 'GET', body = null) {
 
     if (!response.ok) {
         console.error('[fetchAPI] Resposta com erro:', response.status, data);
-        if (response.status === 401 && sessao && typeof limparSessao === 'function') {
+        if (response.status === 401 && sessao && typeof limparSessao === 'function' && !endpoint.includes('/login')) {
             limparSessao();
         }
         let mensagem = '';
@@ -108,6 +102,8 @@ async function fetchAPI(endpoint, method = 'GET', body = null) {
             mensagem = data.mensagem;
         } else if (data.message) {
             mensagem = data.message;
+        } else if (data.erro) {
+            mensagem = data.erro;
         } else if (data.error && typeof data.error === 'string') {
             mensagem = data.error;
         } else {
@@ -294,29 +290,179 @@ window.api = {
     me: () => fetchAPI('/me'),
 
     // Categorias
-    getCategorias: (page = 0, size = 100) => fetchAPI(`/api/categorias?page=${page}&size=${size}`),
-    criarCategoria: (categoria) => fetchAPI('/api/categorias', 'POST', categoria),
+    getCategorias: async (page = 0, size = 100) => {
+        const resp = await fetchAPI('/api/categorias');
+        const lista = Array.isArray(resp) ? resp : (resp?.content || []);
+        lista.content = lista;
+        return lista;
+    },
+    criarCategoria: (categoria) => fetchAPI('/api/categorias', 'POST', { nome: categoria.nome }),
     atualizarCategoria: (id, categoria) => fetchAPI(`/api/categorias/${id}`, 'PUT', categoria),
     removerCategoria: (id) => fetchAPI(`/api/categorias/${id}`, 'DELETE'),
 
     // Produtos
-    getProdutos: (page = 0, size = 100, idCategoria = null) =>
-        fetchAPI(`/api/produtos?page=${page}&size=${size}${idCategoria ? `&idCategoria=${idCategoria}` : ''}`),
-    getProduto: (id) => fetchAPI(`/api/produtos/${id}`),
-    criarProduto: (produto) => fetchAPI('/api/produtos', 'POST', produto),
-    atualizarProduto: (id, produto) => fetchAPI(`/api/produtos/${id}`, 'PUT', produto),
+    getProdutos: async (page = 0, size = 100, idCategoria = null) => {
+        const query = idCategoria ? `?categoria=${encodeURIComponent(idCategoria)}` : '';
+        const resp = await fetchAPI(`/api/produtos${query}`);
+        const lista = Array.isArray(resp) ? resp : (resp?.content || []);
+        lista.forEach(p => {
+            p.imagem = p.imagem || p.imagemUrl || '';
+            p.imagemUrl = p.imagemUrl || p.imagem || '';
+            p.idCategoria = p.idCategoria || p.categoria || '';
+        });
+        lista.content = lista;
+        return lista;
+    },
+    getProduto: async (id) => {
+        const p = await fetchAPI(`/api/produtos/${id}`);
+        if (p) {
+            p.imagem = p.imagem || p.imagemUrl || '';
+            p.imagemUrl = p.imagemUrl || p.imagem || '';
+            p.idCategoria = p.idCategoria || p.categoria || '';
+        }
+        return p;
+    },
+    criarProduto: (produto) => {
+        const payload = {
+            nome: produto.nome,
+            descricao: produto.descricao || '',
+            preco: Number(produto.preco),
+            categoria: produto.categoria || produto.idCategoria || 'Geral',
+            imagemUrl: produto.imagemUrl || produto.imagem || null,
+            disponivel: produto.disponivel !== false
+        };
+        return fetchAPI('/api/produtos', 'POST', payload);
+    },
+    atualizarProduto: (id, produto) => {
+        const payload = {
+            nome: produto.nome,
+            descricao: produto.descricao || '',
+            preco: Number(produto.preco),
+            categoria: produto.categoria || produto.idCategoria || 'Geral',
+            imagemUrl: produto.imagemUrl || produto.imagem || null,
+            disponivel: produto.disponivel !== false
+        };
+        return fetchAPI(`/api/produtos/${id}`, 'PUT', payload);
+    },
     removerProduto: (id) => fetchAPI(`/api/produtos/${id}`, 'DELETE'),
 
     // Usuários
-    getUsuarios: (page = 0, size = 100) => fetchAPI(`/api/usuarios?page=${page}&size=${size}`),
+    getUsuarios: async (page = 0, size = 100) => {
+        const resp = await fetchAPI('/api/usuarios');
+        const lista = Array.isArray(resp) ? resp : (resp?.content || []);
+        lista.forEach(u => {
+            u.tipo = (u.tipo || 'CLIENTE').toUpperCase();
+        });
+        lista.content = lista;
+        return lista;
+    },
     getUsuario: (id) => fetchAPI(`/api/usuarios/${id}`),
     criarUsuario: (usuario) => fetchAPI('/api/usuarios', 'POST', usuario),
     atualizarUsuario: (id, usuario) => fetchAPI(`/api/usuarios/${id}`, 'PUT', usuario),
 
     // Pedidos
-    criarPedido: (pedido) => fetchAPI('/api/pedidos', 'POST', pedido),
-    getPedidos: (page = 0, size = 30) => fetchAPI(`/api/pedidos?page=${page}&size=${size}`),
-    getPedido: (id) => fetchAPI(`/api/pedidos/${id}`),
+    criarPedido: (pedido) => {
+        const usuarioLogado = (typeof obterUsuarioLogado === 'function' ? obterUsuarioLogado() : null);
+        const payload = {
+            usuarioId: pedido.usuarioId || pedido.idUsuario || usuarioLogado?.id || null,
+            tipoEntrega: pedido.tipoEntrega || 'RETIRADA',
+            endereco: pedido.endereco || (pedido.tipoEntrega === 'DELIVERY' ? '' : 'Retirada no balcão'),
+            telefone: pedido.telefone || usuarioLogado?.telefone || '',
+            formaPagamento: pedido.formaPagamento || 'PIX',
+            itens: (pedido.itens || []).map(i => ({
+                idProduto: String(i.idProduto || i.id),
+                quantidade: Number(i.quantidade) || 1
+            }))
+        };
+        return fetchAPI('/api/pedidos', 'POST', payload);
+    },
+    getPedidos: async (page = 0, size = 30) => {
+        const resp = await fetchAPI('/api/pedidos');
+        const lista = Array.isArray(resp) ? resp : (resp?.content || []);
+
+        // Busca usuários cadastrados para cruzar usuarioId com o Nome do Cliente
+        const mapaUsuarios = new Map();
+        try {
+            const usuariosResp = await fetchAPI('/api/usuarios');
+            const listaUsuarios = Array.isArray(usuariosResp) ? usuariosResp : (usuariosResp?.content || []);
+            listaUsuarios.forEach(u => {
+                if (u && u.id) mapaUsuarios.set(String(u.id), u);
+            });
+        } catch (e) {
+            // Se falhar ao buscar usuários, prossegue com os IDs
+        }
+
+        const usuarioLogado = (typeof obterUsuarioLogado === 'function') ? obterUsuarioLogado() : null;
+
+        lista.forEach(p => {
+            p.precoTotal = p.precoTotal ?? p.valorTotal ?? 0;
+            p.valorTotal = p.valorTotal ?? p.precoTotal ?? 0;
+            p.idUsuario = p.idUsuario ?? p.usuarioId ?? '';
+            p.usuarioId = p.usuarioId ?? p.idUsuario ?? '';
+            p.horarioCriacao = p.horarioCriacao ?? p.criadoEm ?? new Date().toISOString();
+            p.criadoEm = p.criadoEm ?? p.horarioCriacao;
+            p.endereco = p.endereco ?? p.enderecoEntrega ?? '';
+            p.enderecoEntrega = p.enderecoEntrega ?? p.endereco ?? '';
+            p.status = (p.status || 'CRIADO').toUpperCase();
+
+            // Vincula o nome e dados reais do cliente
+            const u = mapaUsuarios.get(String(p.usuarioId || p.idUsuario));
+            if (u) {
+                p.nomeCliente = p.nomeCliente || u.nome;
+                p.emailCliente = p.emailCliente || u.email;
+                if (!p.telefone || p.telefone === '0') p.telefone = u.telefone;
+            } else if (!p.nomeCliente && usuarioLogado && String(usuarioLogado.id) === String(p.usuarioId || p.idUsuario)) {
+                p.nomeCliente = usuarioLogado.nome;
+                p.emailCliente = usuarioLogado.email;
+            }
+        });
+        lista.content = lista;
+        return lista;
+    },
+    getPedido: async (id) => {
+        const p = await fetchAPI(`/api/pedidos/${id}`);
+        if (p) {
+            p.precoTotal = p.precoTotal ?? p.valorTotal ?? 0;
+            p.valorTotal = p.valorTotal ?? p.precoTotal ?? 0;
+            p.idUsuario = p.idUsuario ?? p.usuarioId ?? '';
+            p.usuarioId = p.usuarioId ?? p.idUsuario ?? '';
+            p.horarioCriacao = p.horarioCriacao ?? p.criadoEm ?? new Date().toISOString();
+            p.criadoEm = p.criadoEm ?? p.horarioCriacao;
+            p.endereco = p.endereco ?? p.enderecoEntrega ?? '';
+            p.enderecoEntrega = p.enderecoEntrega ?? p.endereco ?? '';
+            p.status = (p.status || 'CRIADO').toUpperCase();
+
+            // Busca os dados do cliente se ainda não tiver nomeCliente
+            if (!p.nomeCliente && p.usuarioId) {
+                try {
+                    const u = await fetchAPI(`/api/usuarios/${p.usuarioId}`);
+                    if (u) {
+                        p.nomeCliente = u.nome;
+                        p.emailCliente = u.email;
+                        if (!p.telefone || p.telefone === '0') p.telefone = u.telefone;
+                    }
+                } catch (e) {}
+            }
+
+            if (!p.itens || p.itens.length === 0) {
+                try {
+                    const itens = await fetchAPI(`/api/itens-pedido/pedido/${id}`);
+                    if (Array.isArray(itens)) {
+                        p.itens = itens.map(i => ({
+                            idProduto: i.produtoId || i.idProduto,
+                            nome: i.descricao || 'Pastel',
+                            quantidade: i.quantidade || 1,
+                            precoUnitario: i.precoUnitario || 0,
+                            subtotal: (Number(i.precoUnitario) || 0) * (Number(i.quantidade) || 1)
+                        }));
+                    }
+                } catch (e) {
+                    p.itens = p.itens || [];
+                }
+            }
+        }
+        return p;
+    },
     atualizarPedido: (id, dados) => fetchAPI(`/api/pedidos/${id}`, 'PUT', dados),
     cancelarPedido: (id, motivo) => fetchAPI(`/api/pedidos/${id}/cancelar`, 'POST', { motivo })
 };

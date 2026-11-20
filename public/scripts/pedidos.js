@@ -20,8 +20,10 @@ async function carregarPedidos() {
     const corpo = document.getElementById('pedidos-tbody');
     try {
         const pagina = await window.api.getPedidos();
-        renderizarPedidos(pagina.content); // Manda desenhar na tabela
+        const lista = Array.isArray(pagina) ? pagina : (pagina?.content || []);
+        renderizarPedidos(lista); // Manda desenhar na tabela
     } catch (erro) {
+        console.error('Erro ao carregar pedidos:', erro);
         corpo.innerHTML = '<tr><td colspan="6" class="text-center">Não foi possível carregar os pedidos.</td></tr>';
     }
 }
@@ -31,7 +33,7 @@ function renderizarPedidos(pedidos) {
     const corpo = document.getElementById('pedidos-tbody');
     corpo.innerHTML = ''; // Limpa antes
 
-    if (pedidos.length === 0) {
+    if (!pedidos || pedidos.length === 0) {
         corpo.innerHTML = '<tr><td colspan="6" class="text-center">Nenhum pedido em aberto.</td></tr>';
         return;
     }
@@ -39,12 +41,23 @@ function renderizarPedidos(pedidos) {
     // Desenha cada linha da tabela:
     pedidos.forEach((pedido) => {
         const linha = document.createElement('tr');
+        const dataFormatada = pedido.horarioCriacao
+            ? new Date(pedido.horarioCriacao).toLocaleString('pt-BR')
+            : '—';
+        const nomeCliente = pedido.nomeCliente || 'Cliente';
+        const subCliente = pedido.emailCliente 
+            ? pedido.emailCliente 
+            : (pedido.idUsuario ? `ID: ${String(pedido.idUsuario).slice(0, 8)}...` : '');
+
         linha.innerHTML = `
-            <td>${new Date(pedido.horarioCriacao).toLocaleString('pt-BR')}</td>
-            <td>${pedido.idUsuario}</td>
-            <td>${pedido.tipoEntrega}</td>
-            <td>R$ ${formatarPreco(pedido.precoTotal)}</td>
-            <td>${pedido.status}</td>
+            <td>${dataFormatada}</td>
+            <td>
+                <strong>${nomeCliente}</strong>
+                ${subCliente ? `<br><small class="text-muted">${subCliente}</small>` : ''}
+            </td>
+            <td>${pedido.tipoEntrega || '—'}</td>
+            <td>R$ ${formatarPreco(pedido.precoTotal || 0)}</td>
+            <td>${pedido.status || 'CRIADO'}</td>
             <td><button type="button" class="btn btn-sm btn-nonna">Ver</button></td>
         `;
         // Ao clicar em "Ver", abre a comanda detalhada
@@ -57,26 +70,32 @@ function renderizarPedidos(pedidos) {
 async function abrirDetalhe(id) {
     try {
         const pedido = await window.api.getPedido(id);
+        if (!pedido) {
+            mostrarAlerta('Pedido não encontrado.', 'danger');
+            return;
+        }
 
         // Preenche os dados do cliente e entrega na janelinha:
-        document.getElementById('detalhe-id').value = pedido.id;
-        document.getElementById('detalhe-usuario').textContent = pedido.idUsuario;
-        document.getElementById('detalhe-entrega').textContent = `${pedido.tipoEntrega}${pedido.endereco ? ' — ' + pedido.endereco : ''}`;
-        document.getElementById('detalhe-telefone').textContent = pedido.telefone;
-        document.getElementById('detalhe-pagamento').textContent = pedido.formaPagamento;
-        document.getElementById('detalhe-status').value = pedido.status;
-        document.getElementById('detalhe-total').textContent = formatarPreco(pedido.precoTotal);
+        document.getElementById('detalhe-id').value = pedido.id || '';
+        document.getElementById('detalhe-usuario').textContent = pedido.nomeCliente
+            ? `${pedido.nomeCliente}${pedido.emailCliente ? ' (' + pedido.emailCliente + ')' : ''}`
+            : (pedido.idUsuario || '—');
+        document.getElementById('detalhe-entrega').textContent = `${pedido.tipoEntrega || ''}${pedido.endereco ? ' — ' + pedido.endereco : ''}`;
+        document.getElementById('detalhe-telefone').textContent = (pedido.telefone && pedido.telefone !== '0') ? pedido.telefone : 'Não informado';
+        document.getElementById('detalhe-pagamento').textContent = pedido.formaPagamento || '—';
+        document.getElementById('detalhe-status').value = pedido.status || 'CRIADO';
+        document.getElementById('detalhe-total').textContent = formatarPreco(pedido.precoTotal || 0);
 
         // Preenche a lista com os sabores e quantidades dos pastéis:
         const corpoItens = document.getElementById('detalhe-itens');
         corpoItens.innerHTML = '';
-        pedido.itens.forEach((item) => {
+        (pedido.itens || []).forEach((item) => {
             const linha = document.createElement('tr');
             linha.innerHTML = `
-                <td>${item.idProduto}</td>
-                <td>${item.quantidade}</td>
-                <td>R$ ${formatarPreco(item.precoUnitario)}</td>
-                <td>R$ ${formatarPreco(item.subtotal)}</td>
+                <td>${item.nome || item.idProduto || 'Item'}</td>
+                <td>${item.quantidade || 1}</td>
+                <td>R$ ${formatarPreco(item.precoUnitario || 0)}</td>
+                <td>R$ ${formatarPreco(item.subtotal || 0)}</td>
             `;
             corpoItens.appendChild(linha);
         });
@@ -125,16 +144,4 @@ async function cancelarPedido() {
         mostrarAlerta(`Erro ao cancelar pedido: ${erro.message}`, 'danger');
     }
 }
-    const id = document.getElementById('detalhe-id').value;
-    const motivo = prompt('Motivo do cancelamento:');
-    if (motivo === null) return;
-
-    try {
-        await window.api.cancelarPedido(id, motivo);
-        bootstrap.Modal.getInstance(document.getElementById('pedidoModal')).hide();
-        mostrarAlerta('Pedido cancelado.', 'success');
-        await carregarPedidos();
-    } catch (erro) {
-        mostrarAlerta(`Erro ao cancelar pedido: ${erro.message}`, 'danger');
-    }
 

@@ -56,6 +56,7 @@ function renderizarUsuarios(usuarios) {
 function abrirModalNovoUsuario() {
     document.getElementById('usuarioForm').reset();
     document.getElementById('usuario-id').value = '';
+    document.getElementById('usuario-senha').required = true;
     document.getElementById('usuarioModalTitulo').textContent = 'Novo usuário';
     new bootstrap.Modal(document.getElementById('usuarioModal')).show();
 }
@@ -66,8 +67,9 @@ function abrirModalEditarUsuario(usuario) {
     document.getElementById('usuario-nome').value = usuario.nome;
     document.getElementById('usuario-email').value = usuario.email;
     document.getElementById('usuario-senha').value = ''; // Senha fica em branco por segurança
+    document.getElementById('usuario-senha').required = false; // Não obriga digitar senha na edição
     document.getElementById('usuario-telefone').value = usuario.telefone || '';
-    document.getElementById('usuario-tipo').value = usuario.tipo;
+    document.getElementById('usuario-tipo').value = (usuario.tipo || 'CLIENTE').toUpperCase();
     document.getElementById('usuarioModalTitulo').textContent = 'Editar usuário';
     new bootstrap.Modal(document.getElementById('usuarioModal')).show();
 }
@@ -81,19 +83,23 @@ async function salvarUsuario() {
     }
 
     const id = document.getElementById('usuario-id').value;
+    const senhaDigitada = document.getElementById('usuario-senha').value;
     const usuario = {
-        nome: document.getElementById('usuario-nome').value,
-        email: document.getElementById('usuario-email').value,
-        senha: document.getElementById('usuario-senha').value,
+        nome: document.getElementById('usuario-nome').value.trim(),
+        email: document.getElementById('usuario-email').value.trim().toLowerCase(),
         telefone: document.getElementById('usuario-telefone').value || null,
         tipo: document.getElementById('usuario-tipo').value
     };
+    if (senhaDigitada) {
+        usuario.senha = senhaDigitada;
+    }
 
     try {
         if (id) {
             await window.api.atualizarUsuario(id, usuario);
             mostrarAlerta('Usuário atualizado.', 'success');
         } else {
+            usuario.senha = senhaDigitada;
             await window.api.criarUsuario(usuario);
             mostrarAlerta('Usuário criado.', 'success');
         }

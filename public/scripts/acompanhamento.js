@@ -216,7 +216,10 @@ function _htmlPedido(pedido, souAdmin) {
         <div class="pedido-card mb-4" id="pedido-${_esc(pedido.id)}">
             <div class="pedido-topo">
                 <div>
-                    <h4>Pedido #${_esc(String(pedido.id || '').slice(-8))}</h4>
+                    <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                        <h4 class="mb-0">Pedido #${_esc(String(pedido.id || '').slice(-8))}</h4>
+                        <span class="badge bg-light text-dark border px-2 py-1"><i class="bi bi-person-fill me-1 text-primary"></i>${_esc(pedido.nomeCliente || 'Cliente')}</span>
+                    </div>
                     <p class="mb-0 text-muted small">${dataCriacao}</p>
                 </div>
                 <span class="badge ${statusClass} fs-6">${statusLabel}</span>
@@ -232,6 +235,12 @@ function _htmlPedido(pedido, souAdmin) {
 
             <div class="informacoes-pedido">
                 <div class="info-box">
+                    <i class="bi bi-person"></i>
+                    <strong>Cliente</strong>
+                    <p class="mb-0">${_esc(pedido.nomeCliente || 'Cliente')}</p>
+                    ${pedido.emailCliente ? `<small class="text-muted d-block">${_esc(pedido.emailCliente)}</small>` : ''}
+                </div>
+                <div class="info-box">
                     <i class="bi bi-geo-alt"></i>
                     <strong>Entrega</strong>
                     ${enderecoHTML}
@@ -241,7 +250,7 @@ function _htmlPedido(pedido, souAdmin) {
                     <strong>Pagamento</strong>
                     <p class="mb-0">${_esc(pedido.formaPagamento || pedido.pagamento || 'Não informado')}</p>
                 </div>
-                ${pedido.telefone ? `
+                ${(pedido.telefone && pedido.telefone !== '0') ? `
                 <div class="info-box">
                     <i class="bi bi-telephone"></i>
                     <strong>Telefone</strong>

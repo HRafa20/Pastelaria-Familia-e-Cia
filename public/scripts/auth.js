@@ -17,43 +17,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Monta a ficha do novo cliente
             const usuario = {
-                id: 'user-' + Date.now(),
                 nome,
                 email,
                 senha,
                 telefone,
-                tipo: 'CLIENTE' // Todo mundo que se cadastra por aqui é Cliente
+                tipo: 'cliente' // Todo mundo que se cadastra por aqui é Cliente
             };
 
-            // 2. Tenta enviar para o servidor oficial da pastelaria (se estiver ligado)
+            // 2. Envia para o servidor oficial da pastelaria (MySQL / Spring Boot)
+            let usuarioCriado = null;
             try {
                 if (window.api && typeof window.api.criarUsuario === 'function') {
-                    await window.api.criarUsuario(usuario);
+                    usuarioCriado = await window.api.criarUsuario(usuario);
                 }
             } catch (err) {
-                console.warn('Backend indisponível para registro, gravando localmente:', err);
-            }
-
-            // 3. Salva também na memória do celular para que ele consiga fazer login mesmo sem internet
-            const cadastrados = JSON.parse(localStorage.getItem('fc_usuarios_cadastrados') || '[]');
-            // Se já existir alguém com esse mesmo e-mail, avisa e não deixa cadastrar duplicado:
-            if (cadastrados.some(u => u.email.toLowerCase() === email)) {
-                mostrarAlerta('Este e-mail já está cadastrado.', 'warning');
+                console.warn('Erro ao cadastrar no backend:', err);
+                mostrarAlerta(`Não foi possível realizar o cadastro: ${err.message}`, 'danger');
                 return;
             }
 
-            cadastrados.push(usuario);
-            localStorage.setItem('fc_usuarios_cadastrados', JSON.stringify(cadastrados));
+            const userSalvo = usuarioCriado || { ...usuario, id: 'user-' + Date.now() };
 
-            // 4. Cria o crachá de acesso na hora (já entra logado automaticamente):
+            // 3. Salva também na memória do navegador para contingência
+            const cadastrados = JSON.parse(localStorage.getItem('fc_usuarios_cadastrados') || '[]');
+            if (!cadastrados.some(u => u.email.toLowerCase() === email)) {
+                cadastrados.push(userSalvo);
+                localStorage.setItem('fc_usuarios_cadastrados', JSON.stringify(cadastrados));
+            }
+
+            // 4. Cria o crachá de acesso na hora com o ID real do banco (já entra logado automaticamente):
             salvarSessao({
-                token: 'demo-jwt-user-' + Date.now(),
+                token: 'token-' + userSalvo.id,
                 usuario: {
-                    id: usuario.id,
-                    nome: usuario.nome,
-                    email: usuario.email,
-                    telefone: usuario.telefone,
-                    tipo: usuario.tipo
+                    id: userSalvo.id,
+                    nome: userSalvo.nome,
+                    email: userSalvo.email,
+                    telefone: userSalvo.telefone,
+                    tipo: (userSalvo.tipo || 'CLIENTE').toUpperCase()
                 }
             });
 

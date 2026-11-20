@@ -54,7 +54,7 @@ async function carregarCategorias() {
             botao.className = 'btn btn-outline-secondary categoria-filtro';
             botao.textContent = categoria.nome;
             // Ao clicar, filtra só os pastéis dessa categoria:
-            botao.onclick = () => filtrarPorCategoria(categoria.id || categoria.nome, botao);
+            botao.onclick = () => filtrarPorCategoria(categoria, botao);
             container.appendChild(botao);
         });
     } catch (erro) {
@@ -89,10 +89,11 @@ function renderizarProdutos(produtos) {
     produtos.forEach((produto) => {
         // Prepara a foto do pastel (se não tiver imagem, não quebra a página)
         let imagemHTML = '';
-        if (produto.imagem) {
-            imagemHTML = /[\/.]/.test(produto.imagem)
-                ? `<img src="${produto.imagem}" alt="${produto.nome}" class="cardapio-img rounded">`
-                : `<span class="fs-1">${produto.imagem}</span>`;
+        const urlImagem = produto.imagemUrl || produto.imagem;
+        if (urlImagem) {
+            imagemHTML = /[\/.]/.test(urlImagem)
+                ? `<img src="${urlImagem}" alt="${produto.nome}" class="cardapio-img rounded">`
+                : `<span class="fs-1">${urlImagem}</span>`;
         }
 
         const coluna = document.createElement('div');
@@ -118,7 +119,7 @@ function renderizarProdutos(produtos) {
 }
 
 // Filtra a lista de pastéis na hora, sem precisar recarregar a página
-async function filtrarPorCategoria(categoriaFiltro, botaoClicado) {
+function filtrarPorCategoria(categoriaFiltro, botaoClicado) {
     // Muda a cor do botão clicado para mostrar qual está ativo
     document.querySelectorAll('.categoria-filtro').forEach(b => b.classList.remove('active'));
     if (botaoClicado) botaoClicado.classList.add('active');
@@ -129,15 +130,55 @@ async function filtrarPorCategoria(categoriaFiltro, botaoClicado) {
         return;
     }
 
-    // Se escolheu uma categoria específica (ex: Doce), separa só os que pertencem a ela
-    const filtrados = produtosCarregados.filter(p => {
-        const catId = p.idCategoria ?? p.id_categoria ?? p.categoriaId ?? p.categoria?.id ?? p.categoria;
-        const catNome = p.categoria?.nome ?? p.categoriaNome ?? '';
-        return String(catId) === String(categoriaFiltro) || 
-               String(catNome).toLowerCase() === String(categoriaFiltro).toLowerCase();
-    });
-
+    const filtrados = produtosCarregados.filter(p => produtoPertenceACategoria(p, categoriaFiltro));
     renderizarProdutos(filtrados); // Redesenha a tela só com os pastéis filtrados
+}
+
+// Verifica se um produto pertence a uma categoria considerando IDs, nomes ou termos (singular/plural)
+function produtoPertenceACategoria(produto, categoriaAlvo) {
+    if (!categoriaAlvo) return true;
+
+    // Normaliza categoria alvo (pode ser objeto { id, nome } ou string)
+    const idAlvo = typeof categoriaAlvo === 'object' ? String(categoriaAlvo.id ?? '') : String(categoriaAlvo);
+    const nomeAlvo = typeof categoriaAlvo === 'object' ? String(categoriaAlvo.nome ?? '') : String(categoriaAlvo);
+
+    // Campos de categoria do produto
+    const idProd = String(produto.idCategoria ?? produto.id_categoria ?? produto.categoriaId ?? produto.categoria?.id ?? '').trim();
+    const nomeProd = String(produto.categoria?.nome ?? produto.categoriaNome ?? produto.categoria ?? '').trim();
+
+    // 1. Comparação direta por ID (ex: 'cat-pasteis', '1', etc)
+    if (idAlvo && (idProd === idAlvo || String(produto.idCategoria) === idAlvo)) {
+        return true;
+    }
+
+    // 2. Classificação precisa por grupo semântico (Doce, Bebida, Salgado)
+    const textoAlvo = `${idAlvo} ${nomeAlvo}`.toLowerCase();
+    const isAlvoDoce = textoAlvo.includes('doce') || textoAlvo.includes('cat-doces');
+    const isAlvoBebida = textoAlvo.includes('bebid') || textoAlvo.includes('suco') || textoAlvo.includes('refrig') || textoAlvo.includes('cat-bebidas');
+    const isAlvoSalgado = textoAlvo.includes('salgad') || textoAlvo.includes('cat-pasteis');
+
+    const textoProd = `${idProd} ${nomeProd} ${produto.nome || ''}`.toLowerCase();
+    const isProdDoce = textoProd.includes('doce') || textoProd.includes('cat-doces') || textoProd.includes('chocolate');
+    const isProdBebida = textoProd.includes('bebid') || textoProd.includes('suco') || textoProd.includes('refrig') || textoProd.includes('cat-bebidas');
+    const isProdSalgado = textoProd.includes('salgad') || textoProd.includes('cat-pasteis') || (!isProdDoce && !isProdBebida);
+
+    // 3. Aplica o filtro estrito: Doce só mostra Doce, Bebida só mostra Bebida, Salgado só mostra Salgado
+    if (isAlvoDoce) return isProdDoce;
+    if (isAlvoBebida) return isProdBebida;
+    if (isAlvoSalgado) return isProdSalgado && !isProdDoce && !isProdBebida;
+
+    // 4. Fallback para categorias adicionais (compara texto exato sem acentos)
+    const normAlvo = normalizarTexto(nomeAlvo || idAlvo);
+    const normProd = normalizarTexto(nomeProd || idProd);
+    return normAlvo === normProd || (normAlvo && normProd.includes(normAlvo));
+}
+
+function normalizarTexto(texto) {
+    return String(texto || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
 }
 
 // Abre a janelinha (modal) com as informações do pastel que o cliente clicou

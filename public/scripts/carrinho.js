@@ -231,13 +231,15 @@ async function finalizarPedido() {
     }
 
     // Monta o "pacote" com todos os dados do pedido para enviar ao servidor:
+    const usuarioLogado = (typeof obterUsuarioLogado === 'function') ? obterUsuarioLogado() : null;
     const payload = {
+        usuarioId:      usuarioLogado?.id || null,
         tipoEntrega,
-        endereco:       tipoEntrega === 'DELIVERY' ? endereco : null,
+        endereco:       tipoEntrega === 'DELIVERY' ? endereco : (endereco || 'Retirada no balcão'),
         formaPagamento: pagamento,
-        telefone,
+        telefone:       telefone || usuarioLogado?.telefone || '',
         itens: itens.map(i => ({
-            idProduto:  i.id,
+            idProduto:  String(i.id),
             quantidade: parseInt(i.quantidade, 10)
         }))
     };

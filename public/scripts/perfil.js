@@ -22,13 +22,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // 3. Quando a pessoa clica no botão "Salvar Alterações":
     const form = document.getElementById('perfilForm');
     if (form) {
-        form.addEventListener('submit', (e) => {
+        form.addEventListener('submit', async (e) => {
             e.preventDefault(); // Não recarrega a página
 
             // Atualiza os dados na ficha do usuário:
             usuario.nome = nomeInput.value.trim();
             usuario.email = emailInput.value.trim().toLowerCase();
             usuario.telefone = telefoneInput.value.trim();
+
+            try {
+                if (usuario.id && window.api && typeof window.api.atualizarUsuario === 'function') {
+                    await window.api.atualizarUsuario(usuario.id, {
+                        nome: usuario.nome,
+                        email: usuario.email,
+                        telefone: usuario.telefone
+                    });
+                }
+            } catch (err) {
+                console.warn('Erro ao atualizar usuário no backend:', err);
+                mostrarAlerta(`Erro ao salvar no servidor: ${err.message}`, 'warning');
+                return;
+            }
 
             // Salva a nova ficha na memória do navegador
             const sessao = obterSessao();
