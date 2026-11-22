@@ -4,7 +4,7 @@
  */
 
 // Endereço onde o servidor da pastelaria estaria rodando
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = 'https://pastelaria-back.onrender.com';
 
 // Dados iniciais de teste (pastéis, categorias e clientes de exemplo para a apresentação já começar pronta):
 const SEED_CATEGORIAS = [
