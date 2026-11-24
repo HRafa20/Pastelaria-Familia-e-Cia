@@ -365,6 +365,8 @@ window.api = {
         const usuarioLogado = (typeof obterUsuarioLogado === 'function' ? obterUsuarioLogado() : null);
         const payload = {
             usuarioId: pedido.usuarioId || pedido.idUsuario || usuarioLogado?.id || null,
+            nomeCliente: pedido.nomeCliente || usuarioLogado?.nome || '',
+            emailCliente: pedido.emailCliente || usuarioLogado?.email || '',
             tipoEntrega: pedido.tipoEntrega || 'RETIRADA',
             endereco: pedido.endereco || (pedido.tipoEntrega === 'DELIVERY' ? '' : 'Retirada no balcão'),
             telefone: pedido.telefone || usuarioLogado?.telefone || '',
@@ -389,8 +391,20 @@ window.api = {
                 if (u && u.id) mapaUsuarios.set(String(u.id), u);
             });
         } catch (e) {
-            // Se falhar ao buscar usuários, prossegue com os IDs
+            // Se falhar ao buscar usuários da API, prossegue
         }
+
+        // Complementa o mapa com usuários de contingência local (fc_usuarios_cadastrados e fc_usuarios_admin)
+        try {
+            const usersCadastrados = JSON.parse(localStorage.getItem('fc_usuarios_cadastrados') || '[]');
+            usersCadastrados.forEach(u => {
+                if (u && u.id && !mapaUsuarios.has(String(u.id))) mapaUsuarios.set(String(u.id), u);
+            });
+            const usersAdmin = JSON.parse(localStorage.getItem('fc_usuarios_admin') || '[]');
+            usersAdmin.forEach(u => {
+                if (u && u.id && !mapaUsuarios.has(String(u.id))) mapaUsuarios.set(String(u.id), u);
+            });
+        } catch (e) {}
 
         const usuarioLogado = (typeof obterUsuarioLogado === 'function') ? obterUsuarioLogado() : null;
 
@@ -411,9 +425,16 @@ window.api = {
                 p.nomeCliente = p.nomeCliente || u.nome;
                 p.emailCliente = p.emailCliente || u.email;
                 if (!p.telefone || p.telefone === '0') p.telefone = u.telefone;
-            } else if (!p.nomeCliente && usuarioLogado && String(usuarioLogado.id) === String(p.usuarioId || p.idUsuario)) {
+            } else if (!p.nomeCliente && usuarioLogado && (
+                String(usuarioLogado.id) === String(p.usuarioId || p.idUsuario) ||
+                (usuarioLogado.email && p.emailCliente && String(usuarioLogado.email).toLowerCase() === String(p.emailCliente).toLowerCase())
+            )) {
                 p.nomeCliente = usuarioLogado.nome;
                 p.emailCliente = usuarioLogado.email;
+            } else if (!p.nomeCliente && usuarioLogado && !ehAdministrador()) {
+                // Se for o cliente logado vendo seus próprios pedidos filtrados
+                p.nomeCliente = usuarioLogado.nome;
+                p.emailCliente = p.emailCliente || usuarioLogado.email;
             }
         });
         lista.content = lista;

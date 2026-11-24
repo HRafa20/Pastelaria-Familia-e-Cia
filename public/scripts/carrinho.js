@@ -234,6 +234,8 @@ async function finalizarPedido() {
     const usuarioLogado = (typeof obterUsuarioLogado === 'function') ? obterUsuarioLogado() : null;
     const payload = {
         usuarioId:      usuarioLogado?.id || null,
+        nomeCliente:    usuarioLogado?.nome || '',
+        emailCliente:   usuarioLogado?.email || '',
         tipoEntrega,
         endereco:       tipoEntrega === 'DELIVERY' ? endereco : (endereco || 'Retirada no balcão'),
         formaPagamento: pagamento,

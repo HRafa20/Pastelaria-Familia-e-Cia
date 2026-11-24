@@ -89,6 +89,19 @@ async function carregarPedidos() {
         // Coloca os pedidos mais recentes em cima e os mais antigos embaixo
         pedidos.sort((a, b) => new Date(b.horarioCriacao) - new Date(a.horarioCriacao));
 
+        // Garante que o nome do cliente seja exibido com clareza mesmo se não veio gravado no pedido
+        pedidos.forEach(p => {
+            if (!p.nomeCliente || p.nomeCliente === 'Cliente') {
+                if (usuario && (
+                    String(usuario.id) === String(p.idUsuario || p.usuarioId) ||
+                    (usuario.email && p.emailCliente && String(usuario.email).toLowerCase() === String(p.emailCliente).toLowerCase()) ||
+                    !souAdmin
+                )) {
+                    p.nomeCliente = usuario.nome || p.nomeCliente || 'Cliente';
+                }
+            }
+        });
+
         pedidosAtuais = pedidos;
         renderizarPedidos(pedidos, souAdmin, usuario); // Desenha os cards na tela
 
