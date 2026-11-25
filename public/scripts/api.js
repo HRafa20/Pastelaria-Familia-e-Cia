@@ -551,3 +551,25 @@ window.api = {
     atualizarPedido: (id, dados) => fetchAPI(`/api/pedidos/${id}`, 'PUT', dados),
     cancelarPedido: (id, motivo) => fetchAPI(`/api/pedidos/${id}/cancelar`, 'POST', { motivo })
 };
+
+/* Impede letras nos campos de telefone */
+document.addEventListener('DOMContentLoaded', () => {
+    const camposTelefone = [
+        document.getElementById('telefone'),
+        document.getElementById('pedido-telefone'),
+        document.getElementById('finalizar-telefone')
+    ];
+
+    camposTelefone.forEach(campo => {
+        if (!campo) return;
+
+        campo.addEventListener('input', () => {
+            // Remove tudo que não for número
+            campo.value = campo.value.replace(/\D/g, '');
+
+            // Limita a 11 números (DDD + número)
+            campo.value = campo.value.slice(0, 11);
+        });
+    });
+});
+
