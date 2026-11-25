@@ -140,10 +140,10 @@ function executarMockLocal(endpoint, method, body) {
         }
         if (method === 'DELETE') {
             const id = path.split('/')[2];
-            categorias = categorias.filter(c => c.id !== id);
+            categorias = categorias.filter(c => String(c.id) !== String(id));
             LocalMock.setCategorias(categorias);
             // Remove também os produtos da categoria (igual ao back-end)
-            const restantes = LocalMock.getProdutos().filter(p => (p.idCategoria ?? p.id_categoria) !== id);
+            const restantes = LocalMock.getProdutos().filter(p => String(p.idCategoria ?? p.id_categoria ?? '') !== String(id));
             LocalMock.setProdutos(restantes);
             return null;
         }
