@@ -40,6 +40,18 @@ const USUARIOS_TESTE = [
             telefone: '(48) 98888-7777',
             tipo: 'CLIENTE'
         }
+    },
+    {
+        // Cliente de teste
+        email: 'fulano@email.com',
+        senha: 'senha123',
+        usuario: {
+            id: 'df1ea1f4-47f8-40f1-a2d0-d4fcd875fcc5',
+            nome: 'Fulano da Silva',
+            email: 'fulano@email.com',
+            telefone: '(48)988131211',
+            tipo: 'CLIENTE'
+        }
     }
 ];
 

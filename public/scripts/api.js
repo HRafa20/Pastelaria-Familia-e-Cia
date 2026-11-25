@@ -23,7 +23,8 @@ const SEED_PRODUTOS = [
 
 const SEED_USUARIOS = [
     { id: '9fd3d5bd-80e8-4c40-a7a5-1d1c116ee0f9', nome: 'Administrador', email: 'admin@familiaecia.com', telefone: '(48) 99999-0000', tipo: 'ADMINISTRADOR' },
-    { id: '223e4567-e89b-12d3-a456-426614174001', nome: 'João Silva', email: 'joao@example.com', telefone: '(48) 98888-7777', tipo: 'CLIENTE' }
+    { id: '223e4567-e89b-12d3-a456-426614174001', nome: 'João Silva', email: 'joao@example.com', telefone: '(48) 98888-7777', tipo: 'CLIENTE' },
+    { id: 'df1ea1f4-47f8-40f1-a2d0-d4fcd875fcc5', nome: 'Fulano da Silva', email: 'fulano@email.com', telefone: '(48)988131211', tipo: 'CLIENTE' }
 ];
 
 const SEED_PEDIDOS = [
@@ -248,20 +249,28 @@ function executarMockLocal(endpoint, method, body) {
             });
             const totalCalculado = itensEnriquecidos.reduce((acc, i) => acc + i.subtotal, 0);
 
+            const nomeFinal = (body?.nomeCliente && body?.nomeCliente.trim().toLowerCase() !== 'cliente')
+                ? body.nomeCliente.trim()
+                : ((usuario.nome && usuario.nome.trim().toLowerCase() !== 'cliente') ? usuario.nome.trim() : 'Cliente');
+            const idUsuarioFinal = body?.usuarioId || body?.idUsuario || usuario.id || '';
+            const emailFinal = body?.emailCliente || usuario.email || '';
+            const telFinal = body?.telefone || usuario.telefone || '';
+
             const novo = {
                 id: 'ped-' + Date.now(),
-                idUsuario: usuario.id,
-                nomeCliente: usuario.nome,
-                emailCliente: usuario.email || '',
                 tipoEntrega: body?.tipoEntrega || 'RETIRADA',
                 endereco: body?.endereco || null,
                 formaPagamento: body?.formaPagamento || 'PIX',
-                telefone: body?.telefone || usuario.telefone || '',
                 taxaEntrega: body?.tipoEntrega === 'DELIVERY' ? 5.00 : 0.00,
                 precoTotal: Number(body?.precoTotal || totalCalculado),
                 status: 'CRIADO',
                 horarioCriacao: new Date().toISOString(),
                 ...body,
+                idUsuario: idUsuarioFinal,
+                usuarioId: idUsuarioFinal,
+                nomeCliente: nomeFinal,
+                emailCliente: emailFinal,
+                telefone: telFinal,
                 itens: itensEnriquecidos
             };
             pedidos.unshift(novo);
@@ -382,59 +391,85 @@ window.api = {
         const resp = await fetchAPI('/api/pedidos');
         const lista = Array.isArray(resp) ? resp : (resp?.content || []);
 
-        // Busca usuários cadastrados para cruzar usuarioId com o Nome do Cliente
+        // Busca usuários cadastrados para cruzar usuarioId / telefone / email com o Nome do Cliente
         const mapaUsuarios = new Map();
+
+        const registrarNoMapa = (u) => {
+            if (!u) return;
+            if (u.id) mapaUsuarios.set(String(u.id), u);
+            if (u.email) mapaUsuarios.set(String(u.email).toLowerCase(), u);
+            const telLimpo = String(u.telefone || '').replace(/\D/g, '');
+            if (telLimpo) mapaUsuarios.set('tel_' + telLimpo, u);
+        };
+
+        // 1. Sementes padrão do sistema
+        SEED_USUARIOS.forEach(registrarNoMapa);
+
+        // 2. Busca usuários oficiais do backend
         try {
             const usuariosResp = await fetchAPI('/api/usuarios');
             const listaUsuarios = Array.isArray(usuariosResp) ? usuariosResp : (usuariosResp?.content || []);
-            listaUsuarios.forEach(u => {
-                if (u && u.id) mapaUsuarios.set(String(u.id), u);
-            });
+            listaUsuarios.forEach(registrarNoMapa);
         } catch (e) {
             // Se falhar ao buscar usuários da API, prossegue
         }
 
-        // Complementa o mapa com usuários de contingência local (fc_usuarios_cadastrados e fc_usuarios_admin)
+        // 3. Usuários de contingência local no navegador
         try {
             const usersCadastrados = JSON.parse(localStorage.getItem('fc_usuarios_cadastrados') || '[]');
-            usersCadastrados.forEach(u => {
-                if (u && u.id && !mapaUsuarios.has(String(u.id))) mapaUsuarios.set(String(u.id), u);
-            });
+            usersCadastrados.forEach(registrarNoMapa);
             const usersAdmin = JSON.parse(localStorage.getItem('fc_usuarios_admin') || '[]');
-            usersAdmin.forEach(u => {
-                if (u && u.id && !mapaUsuarios.has(String(u.id))) mapaUsuarios.set(String(u.id), u);
-            });
+            usersAdmin.forEach(registrarNoMapa);
         } catch (e) {}
 
         const usuarioLogado = (typeof obterUsuarioLogado === 'function') ? obterUsuarioLogado() : null;
+        if (usuarioLogado) registrarNoMapa(usuarioLogado);
 
         lista.forEach(p => {
             p.precoTotal = p.precoTotal ?? p.valorTotal ?? 0;
             p.valorTotal = p.valorTotal ?? p.precoTotal ?? 0;
-            p.idUsuario = p.idUsuario ?? p.usuarioId ?? '';
-            p.usuarioId = p.usuarioId ?? p.idUsuario ?? '';
-            p.horarioCriacao = p.horarioCriacao ?? p.criadoEm ?? new Date().toISOString();
+            
+            // Suporta formatos variados de ID do usuário (relacional, DTO, snake_case)
+            p.usuarioId = p.usuarioId || p.idUsuario || p.usuario_id || p.usuario?.id || p.cliente?.id || '';
+            p.idUsuario = p.usuarioId;
+            p.horarioCriacao = p.horarioCriacao ?? p.criadoEm ?? p.dataCriacao ?? new Date().toISOString();
             p.criadoEm = p.criadoEm ?? p.horarioCriacao;
             p.endereco = p.endereco ?? p.enderecoEntrega ?? '';
             p.enderecoEntrega = p.enderecoEntrega ?? p.endereco ?? '';
             p.status = (p.status || 'CRIADO').toUpperCase();
 
-            // Vincula o nome e dados reais do cliente
-            const u = mapaUsuarios.get(String(p.usuarioId || p.idUsuario));
-            if (u) {
-                p.nomeCliente = p.nomeCliente || u.nome;
-                p.emailCliente = p.emailCliente || u.email;
-                if (!p.telefone || p.telefone === '0') p.telefone = u.telefone;
-            } else if (!p.nomeCliente && usuarioLogado && (
-                String(usuarioLogado.id) === String(p.usuarioId || p.idUsuario) ||
-                (usuarioLogado.email && p.emailCliente && String(usuarioLogado.email).toLowerCase() === String(p.emailCliente).toLowerCase())
+            // Resgata se já existe um nome legítimo diferente do termo genérico "Cliente"
+            const nomeCandidato = (p.nomeCliente && p.nomeCliente.trim().toLowerCase() !== 'cliente')
+                ? p.nomeCliente.trim()
+                : (p.nomeUsuario || p.usuario?.nome || p.cliente?.nome || p.nome || null);
+
+            p.emailCliente = p.emailCliente || p.email || p.usuario?.email || p.cliente?.email || '';
+            p.telefone = p.telefone || p.usuario?.telefone || p.cliente?.telefone || '';
+
+            // Busca usuário correspondente por ID, e-mail ou telefone limpo
+            const idPed = String(p.usuarioId || '');
+            const emailPed = String(p.emailCliente || '').toLowerCase();
+            const telLimpo = String(p.telefone || '').replace(/\D/g, '');
+
+            const u = (idPed && mapaUsuarios.get(idPed))
+                   || (emailPed && mapaUsuarios.get(emailPed))
+                   || (telLimpo && mapaUsuarios.get('tel_' + telLimpo));
+
+            if (u && u.nome) {
+                p.nomeCliente = u.nome;
+                if (!p.emailCliente && u.email) p.emailCliente = u.email;
+                if ((!p.telefone || p.telefone === '0') && u.telefone) p.telefone = u.telefone;
+            } else if (nomeCandidato) {
+                p.nomeCliente = nomeCandidato;
+            } else if (usuarioLogado && (
+                (usuarioLogado.id && idPed && String(usuarioLogado.id) === idPed) ||
+                (usuarioLogado.email && emailPed && String(usuarioLogado.email).toLowerCase() === emailPed) ||
+                (!ehAdministrador())
             )) {
                 p.nomeCliente = usuarioLogado.nome;
-                p.emailCliente = usuarioLogado.email;
-            } else if (!p.nomeCliente && usuarioLogado && !ehAdministrador()) {
-                // Se for o cliente logado vendo seus próprios pedidos filtrados
-                p.nomeCliente = usuarioLogado.nome;
                 p.emailCliente = p.emailCliente || usuarioLogado.email;
+            } else {
+                p.nomeCliente = p.nomeCliente || 'Cliente';
             }
         });
         lista.content = lista;
@@ -445,25 +480,54 @@ window.api = {
         if (p) {
             p.precoTotal = p.precoTotal ?? p.valorTotal ?? 0;
             p.valorTotal = p.valorTotal ?? p.precoTotal ?? 0;
-            p.idUsuario = p.idUsuario ?? p.usuarioId ?? '';
-            p.usuarioId = p.usuarioId ?? p.idUsuario ?? '';
-            p.horarioCriacao = p.horarioCriacao ?? p.criadoEm ?? new Date().toISOString();
+            p.usuarioId = p.usuarioId || p.idUsuario || p.usuario_id || p.usuario?.id || p.cliente?.id || '';
+            p.idUsuario = p.usuarioId;
+            p.horarioCriacao = p.horarioCriacao ?? p.criadoEm ?? p.dataCriacao ?? new Date().toISOString();
             p.criadoEm = p.criadoEm ?? p.horarioCriacao;
             p.endereco = p.endereco ?? p.enderecoEntrega ?? '';
             p.enderecoEntrega = p.enderecoEntrega ?? p.endereco ?? '';
             p.status = (p.status || 'CRIADO').toUpperCase();
 
-            // Busca os dados do cliente se ainda não tiver nomeCliente
-            if (!p.nomeCliente && p.usuarioId) {
+            const nomeCandidato = (p.nomeCliente && p.nomeCliente.trim().toLowerCase() !== 'cliente')
+                ? p.nomeCliente.trim()
+                : (p.nomeUsuario || p.usuario?.nome || p.cliente?.nome || p.nome || null);
+            p.emailCliente = p.emailCliente || p.email || p.usuario?.email || p.cliente?.email || '';
+            p.telefone = p.telefone || p.usuario?.telefone || p.cliente?.telefone || '';
+
+            // Tenta buscar usuário no backend se o nome ainda não estiver definido
+            if (p.usuarioId && !nomeCandidato) {
                 try {
                     const u = await fetchAPI(`/api/usuarios/${p.usuarioId}`);
-                    if (u) {
+                    if (u && u.nome) {
                         p.nomeCliente = u.nome;
-                        p.emailCliente = u.email;
+                        p.emailCliente = p.emailCliente || u.email;
                         if (!p.telefone || p.telefone === '0') p.telefone = u.telefone;
                     }
                 } catch (e) {}
             }
+
+            // Tenta cruzar com dados locais/sementes se ainda não achou
+            if (!p.nomeCliente || p.nomeCliente.trim().toLowerCase() === 'cliente') {
+                if (nomeCandidato) {
+                    p.nomeCliente = nomeCandidato;
+                } else {
+                    const cadastrados = JSON.parse(localStorage.getItem('fc_usuarios_cadastrados') || '[]');
+                    const admins = JSON.parse(localStorage.getItem('fc_usuarios_admin') || '[]');
+                    const todos = [...SEED_USUARIOS, ...cadastrados, ...admins];
+                    const telLimpo = String(p.telefone || '').replace(/\D/g, '');
+                    const u = todos.find(user => 
+                        (p.usuarioId && String(user.id) === String(p.usuarioId)) ||
+                        (p.emailCliente && String(user.email).toLowerCase() === String(p.emailCliente).toLowerCase()) ||
+                        (telLimpo && String(user.telefone || '').replace(/\D/g, '') === telLimpo)
+                    );
+                    if (u && u.nome) {
+                        p.nomeCliente = u.nome;
+                        p.emailCliente = p.emailCliente || u.email;
+                        if (!p.telefone || p.telefone === '0') p.telefone = u.telefone;
+                    }
+                }
+            }
+            p.nomeCliente = p.nomeCliente || 'Cliente';
 
             if (!p.itens || p.itens.length === 0) {
                 try {

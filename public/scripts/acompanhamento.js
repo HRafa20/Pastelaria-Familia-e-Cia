@@ -90,11 +90,48 @@ async function carregarPedidos() {
         pedidos.sort((a, b) => new Date(b.horarioCriacao) - new Date(a.horarioCriacao));
 
         // Garante que o nome do cliente seja exibido com clareza mesmo se não veio gravado no pedido
+        // Cria mapa cruzado de usuários para resolver nomes mesmo na visão do Administrador
+        let mapaUsuarios = new Map();
+        try {
+            const usuariosResp = await window.api.getUsuarios();
+            const listaU = Array.isArray(usuariosResp) ? usuariosResp : (usuariosResp?.content || []);
+            listaU.forEach(u => {
+                if (!u) return;
+                if (u.id) mapaUsuarios.set(String(u.id), u);
+                if (u.email) mapaUsuarios.set(String(u.email).toLowerCase(), u);
+                const t = String(u.telefone || '').replace(/\D/g, '');
+                if (t) mapaUsuarios.set('tel_' + t, u);
+            });
+        } catch (e) {}
+
+        try {
+            const cad = JSON.parse(localStorage.getItem('fc_usuarios_cadastrados') || '[]');
+            cad.forEach(u => {
+                if (!u) return;
+                if (u.id && !mapaUsuarios.has(String(u.id))) mapaUsuarios.set(String(u.id), u);
+                if (u.email && !mapaUsuarios.has(String(u.email).toLowerCase())) mapaUsuarios.set(String(u.email).toLowerCase(), u);
+                const t = String(u.telefone || '').replace(/\D/g, '');
+                if (t && !mapaUsuarios.has('tel_' + t)) mapaUsuarios.set('tel_' + t, u);
+            });
+        } catch (e) {}
+
         pedidos.forEach(p => {
-            if (!p.nomeCliente || p.nomeCliente === 'Cliente') {
+            const idPed = String(p.usuarioId || p.idUsuario || p.usuario_id || p.usuario?.id || '');
+            const emailPed = String(p.emailCliente || p.email || p.usuario?.email || '').toLowerCase();
+            const telLimpo = String(p.telefone || p.usuario?.telefone || '').replace(/\D/g, '');
+
+            const u = (idPed && mapaUsuarios.get(idPed))
+                   || (emailPed && mapaUsuarios.get(emailPed))
+                   || (telLimpo && mapaUsuarios.get('tel_' + telLimpo));
+
+            if (u && u.nome) {
+                p.nomeCliente = u.nome;
+                if (!p.emailCliente && u.email) p.emailCliente = u.email;
+                if ((!p.telefone || p.telefone === '0') && u.telefone) p.telefone = u.telefone;
+            } else if (!p.nomeCliente || p.nomeCliente.trim().toLowerCase() === 'cliente') {
                 if (usuario && (
-                    String(usuario.id) === String(p.idUsuario || p.usuarioId) ||
-                    (usuario.email && p.emailCliente && String(usuario.email).toLowerCase() === String(p.emailCliente).toLowerCase()) ||
+                    (usuario.id && idPed && String(usuario.id) === idPed) ||
+                    (usuario.email && emailPed && String(usuario.email).toLowerCase() === emailPed) ||
                     !souAdmin
                 )) {
                     p.nomeCliente = usuario.nome || p.nomeCliente || 'Cliente';
@@ -206,8 +243,8 @@ function _htmlPedido(pedido, souAdmin) {
             <div class="mt-3 pt-3 border-top bg-light p-2 rounded">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <div>
-                        <span class="badge bg-dark me-1"><i class="bi bi-person-fill me-1"></i>Cliente</span>
-                        <strong>${_esc(pedido.nomeCliente || 'Cliente')}</strong>
+                        <span class="badge bg-dark me-1"><i class="bi bi-person-fill me-1"></i>Cliente:</span>
+                        <strong class="text-dark">${_esc(pedido.nomeCliente || 'Cliente')}</strong>
                         ${pedido.emailCliente ? `<span class="text-muted small ms-1">(${_esc(pedido.emailCliente)})</span>` : ''}
                     </div>
                     <div class="d-flex align-items-center gap-2">
@@ -250,7 +287,7 @@ function _htmlPedido(pedido, souAdmin) {
                 <div class="info-box">
                     <i class="bi bi-person"></i>
                     <strong>Cliente</strong>
-                    <p class="mb-0">${_esc(pedido.nomeCliente || 'Cliente')}</p>
+                    <p class="mb-0 fw-semibold">${_esc(pedido.nomeCliente || 'Cliente')}</p>
                     ${pedido.emailCliente ? `<small class="text-muted d-block">${_esc(pedido.emailCliente)}</small>` : ''}
                 </div>
                 <div class="info-box">
