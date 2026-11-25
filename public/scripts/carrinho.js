@@ -231,23 +231,34 @@ async function finalizarPedido() {
     }
 
     // Monta o "pacote" com todos os dados do pedido para enviar ao servidor:
-    const usuarioLogado = (typeof obterUsuarioLogado === 'function') ? obterUsuarioLogado() : null;
-    const payload = {
-        usuarioId:      usuarioLogado?.id || null,
-        nomeCliente:    usuarioLogado?.nome || '',
-        emailCliente:   usuarioLogado?.email || '',
-        tipoEntrega,
-        endereco:       tipoEntrega === 'DELIVERY' ? endereco : (endereco || 'Retirada no balcão'),
-        formaPagamento: pagamento,
-        telefone:       telefone || usuarioLogado?.telefone || '',
-        itens: itens.map(i => ({
-            idProduto:  String(i.id),
-            quantidade: parseInt(i.quantidade, 10)
-        }))
-    };
+        // Monta os dados completos do pedido
+    const usuarioLogado = (typeof obterUsuarioLogado === 'function')
+        ? obterUsuarioLogado()
+        : null;
 
-    // Coloca o botão em modo "carregando..." para evitar cliques duplos
-    _setBotaoCarregando(true);
+    const payload = {
+        usuarioId: usuarioLogado?.id || null,
+        nomeCliente: usuarioLogado?.nome || '',
+        emailCliente: usuarioLogado?.email || '',
+        tipoEntrega,
+        endereco: tipoEntrega === 'DELIVERY'
+            ? endereco
+            : (endereco || 'Retirada no balcão'),
+        formaPagamento: pagamento,
+        telefone: telefone || usuarioLogado?.telefone || '',
+
+        // Salva também nome e preço de cada produto
+        itens: itens.map(i => ({
+            idProduto: String(i.id),
+            nome: i.nome,
+            preco: Number(i.preco),
+            precoUnitario: Number(i.preco),
+            quantidade: parseInt(i.quantidade, 10)
+        })),
+
+        precoTotal: Carrinho.obterTotal()
+    };
+    
 
     try {
         // Envia o pedido para o sistema da pastelaria:
