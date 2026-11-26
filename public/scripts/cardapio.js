@@ -1,6 +1,5 @@
 /**
  * cardapio.js - Mostra o Cardápio e Permite Escolher os Pastéis
-
  */
 
 let produtosCarregados = []; // Guarda os pastéis na memória para não precisar buscar toda hora
@@ -11,16 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     carregarCategorias(); // 1. Busca os botões de filtro (Salgados, Doces, Bebidas)
     carregarProdutos();   // 2. Busca e desenha os pastéis na tela
 
-    // Se o cliente escolher "Delivery", mostra o campo de endereço. Se escolher "Retirar no balcão", esconde:
-    document.getElementById('pedido-tipo-entrega').addEventListener('change', (evento) => {
-        const enderecoContainer = document.getElementById('pedido-endereco-container');
-        const enderecoInput = document.getElementById('pedido-endereco');
-        const precisaEndereco = evento.target.value === 'DELIVERY';
-        enderecoContainer.hidden = !precisaEndereco; // Mostra ou esconde a caixinha
-        enderecoInput.required = precisaEndereco;    // Obriga a digitar o endereço se for entrega
-    });
-
-    // Botão "Continuar comprando" do modal -> só adiciona na sacola e fecha a janelinha
+    // Botão "Adicionar ao carrinho" do modal -> só adiciona na sacola e fecha a janelinha
     document.getElementById('btnConfirmarPedido').addEventListener('click', () => confirmarPedido(false));
     
     // Botão "Pedir agora" -> adiciona na sacola e já leva direto para o carrinho
@@ -203,48 +193,37 @@ function abrirModalPedido(idProduto) {
     document.getElementById('pedido-id-produto').value = produto.id;
     document.getElementById('pedido-produto-nome').textContent = produto.nome;
     document.getElementById('pedido-produto-preco').textContent = formatarPreco(produto.preco);
-    document.getElementById('pedido-endereco-container').hidden = true;
 
     // Exibe a janelinha na tela
     new bootstrap.Modal(document.getElementById('pedidoModal')).show();
 }
 
-// Pega o que o cliente escolheu na janelinha e joga dentro do carrinho
+// Pega a quantidade escolhida na janelinha e adiciona ao carrinho
 async function confirmarPedido(irParaCarrinho = false) {
     const form = document.getElementById('pedidoForm');
     if (!form.checkValidity()) {
-        form.reportValidity(); // Se faltou preencher algo (ex: endereço no delivery), avisa
+        form.reportValidity();
         return;
     }
 
-    // Lê a quantidade e o pastel selecionado
-    const pedido = {
-        tipoEntrega: document.getElementById('pedido-tipo-entrega').value,
-        endereco: document.getElementById('pedido-endereco').value || null,
-        formaPagamento: document.getElementById('pedido-forma-pagamento').value,
-        telefone: document.getElementById('pedido-telefone').value,
-        itens: [{
-            idProduto: document.getElementById('pedido-id-produto').value,
-            quantidade: parseInt(document.getElementById('pedido-quantidade').value, 10)
-        }]
-    };
+    const idProduto = document.getElementById('pedido-id-produto').value;
+    const quantidade = parseInt(document.getElementById('pedido-quantidade').value, 10);
 
     const botao = document.getElementById('btnConfirmarPedido');
     botao.disabled = true; // Desativa o botão para evitar clique duplo
-    
+
     const produtoSelecionado = produtosCarregados.find(
-        (p) => String(p.id) === String(pedido.itens[0].idProduto)
+        (p) => String(p.id) === String(idProduto)
     );
 
     try {
-        // Coloca o pastel na sacola/carrinho (guarda na memória do celular):
         Carrinho.adicionarItem({
-            id: pedido.itens[0].idProduto,
-            quantidade: pedido.itens[0].quantidade,
+            id: idProduto,
+            quantidade,
             nome: produtoSelecionado ? produtoSelecionado.nome : '',
             preco: produtoSelecionado ? produtoSelecionado.preco : 0
         });
-        
+
         // Fecha a janelinha
         bootstrap.Modal.getInstance(document.getElementById('pedidoModal')).hide();
 
